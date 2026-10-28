@@ -2,9 +2,11 @@ package com.ashusnapx.news
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.Manifest
 import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.transition.AutoTransition
 import android.transition.TransitionManager
@@ -12,6 +14,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.text.SpannableStringBuilder
@@ -104,7 +107,8 @@ class MainActivity : Activity() {
         greetTitle = header.findViewById(R.id.greetTitle)
         greetSub = header.findViewById(R.id.greetSub)
         header.findViewById<View>(R.id.greetRow).setOnLongClickListener { it.haptic(); welcome(); true } // change the name
-        if (!profile.contains("name")) welcome()
+        if (!profile.contains("name")) welcome() else askNotifications()
+        Reminder.schedule(this)
 
         tab = savedInstanceState?.getString("tab") ?: tab
         selectTab(tab, animate = false)
@@ -145,6 +149,7 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        Reminder.opened(this)
         reads = Reads.all(this) // coming back from an article: dim it, move the progress bar
         adapter.notifyDataSetChanged()
         progress()
@@ -350,6 +355,16 @@ class MainActivity : Activity() {
             else getString(R.string.greet_sub, date, if (unread == 0) getString(R.string.greet_done) else getString(R.string.unread, unread))
     }
 
+    /** Asked once, after the name, never again whatever the answer. */
+    private fun askNotifications() {
+        if (profile.getBoolean("askedNotify", false)) return
+        profile.edit().putBoolean("askedNotify", true).apply()
+        // Android 11-12 have no runtime notification permission: notifications are simply on.
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7)
+        }
+    }
+
     /** One question on first launch; long-press the greeting to change the answer. Skipping counts as answered. */
     private fun welcome() {
         val screen = findViewById<View>(R.id.welcome)
@@ -372,7 +387,7 @@ class MainActivity : Activity() {
             profile.edit().putString("name", name.filter { !it.isISOControl() }.trim().take(30)).apply()
             window.insetsController?.hide(WindowInsets.Type.ime())
             greet()
-            screen.animate().alpha(0f).setDuration(260).withEndAction { screen.visibility = View.GONE }
+            screen.animate().alpha(0f).setDuration(260).withEndAction { screen.visibility = View.GONE; askNotifications() }
         }
         findViewById<View>(R.id.nameGo).setOnClickListener { it.haptic(); done(input.text.toString()) }
         findViewById<View>(R.id.nameSkip).setOnClickListener { it.haptic(); done("") }

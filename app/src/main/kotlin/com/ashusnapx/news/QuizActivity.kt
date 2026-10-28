@@ -368,6 +368,7 @@ class QuizActivity : Activity() {
 
     private fun result() {
         pacer?.cancel()
+        Reminder.quizDone(this) // no afternoon nudge once today's quiz is done
         play.visibility = View.GONE
         actions.visibility = View.GONE
         val right = outcomes.count { it == RIGHT }

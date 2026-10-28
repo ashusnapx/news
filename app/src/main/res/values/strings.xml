@@ -60,6 +60,18 @@
     <string name="s_website">Website</string>
     <string name="to_paper">Switch to paper</string>
     <string name="to_screen">Switch to screen</string>
+    <string name="notify_channel">Daily brief</string>
+    <string name="notify_channel_desc">Morning brief, afternoon quiz, evening catch-up. At most three a day.</string>
+    <string name="notify_morning">Good morning ☀️</string>
+    <string name="notify_morning_named">Good morning, %1$s ☀️</string>
+    <string name="notify_morning_text">%1$d stories today · Top: %2$s</string>
+    <string name="notify_quiz">Today’s quiz is ready</string>
+    <string name="notify_quiz_text">%1$d questions with UPSC marking. Ten minutes for a few +2s?</string>
+    <plurals name="notify_left">
+        <item quantity="one">%d story left today</item>
+        <item quantity="other">%d stories left today</item>
+    </plurals>
+    <string name="notify_left_text">Finish before they roll off · %1$s</string>
     <string name="made_by">Made by Ashutosh Kumar</string>
     <string name="author">Ashutosh Kumar</string>
     <string name="author_line">Generative AI Engineer  ·  Bengaluru</string>
