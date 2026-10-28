@@ -62,7 +62,7 @@ quiz_page = """<li class="wpProQuiz_listItem"><div class="wpProQuiz_question_tex
 <li><strong>History</strong>:<ul><li style="font-weight: 400;"><span>Settled in the 1st century BCE.</span></li></ul></li></ul><p>&nbsp;</p>
 <p><strong>Hence only statement 2 is correct.</strong></p><p><strong>News</strong>:https://www.thehindu.com/x</p></div><div style="display: none;" class="wpProQuiz_incorrect">x</div></div>
 <script>json: {"2840":{"type":"single","id":2840,"points":1,"correct":[0,1]}}</script>"""
-[q] = scrape.questions("Vajiram & Ravi", "https://v.com/q", quiz_page)
+[q] = scrape.questions("Vajiram & Ravi", quiz_page)
 assert q["options"] == ["1 only", "2 only"] and q["answer"] == 1, q
 assert "<p>1. It is part of Malaysia.</p><p>2. It sits on the Andaman Sea.</p>" in q["q"], q["q"]
 assert q["why"] == [["p", 0, "Phuket is in Thailand."], ["p", 0, "<b>Hence only statement 2 is correct.</b>"]], q["why"]

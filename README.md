@@ -12,8 +12,8 @@ GitHub Actions (hourly, 06:00–23:00 IST)
                                         Android app
 ```
 
-- **Scraper** (`scraper/`, Python stdlib only): WordPress REST API for Vajiram & Ravi, Insights IAS, ForumIAS, Rau's IAS; the dated news-analysis page for Drishti IAS. Keeps only posts dated **today (IST)** and groups the same story across coachings. A broken source logs a warning and is skipped.
-- **App** (`app/`, Kotlin + platform views, zero dependencies): fetches `news.json`, shows cards, opens the full article in-app. Switch coaching per story when several covered it. Works offline for today's stories via the platform HTTP cache. Shows nothing from previous days.
+- **Scraper** (`scraper/`, Python stdlib only): WordPress REST API for Vajiram & Ravi, Insights IAS and ForumIAS; the dated news-analysis page for Drishti IAS. Keeps the **last 24 hours**, groups the same story across coachings, and tags each with prelims/mains and its GS papers. Daily quizzes come from Vajiram & Ravi, IASbaba and Legacy IAS (last 48 hours, one quiz per coaching), with the same question from two coachings kept once. A broken source logs a warning and is skipped.
+- **App** (`app/`, Kotlin + platform views, zero dependencies): fetches `news.json`, shows the feed, opens full articles in-app (paper or screen, listen, save, highlight, share), runs the quiz with UPSC marking, and keeps a streak, a daily goal, saved stories and a revision deck on the phone. Shows nothing older than 24 hours.
 
 ## Setup
 

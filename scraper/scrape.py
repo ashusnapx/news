@@ -128,7 +128,6 @@ SOURCES = [
     ("Drishti IAS", drishti),
     ("Insights IAS", wp, "https://www.insightsonindia.com", {238466806: "prelims", 238466805: "mains"}),
     ("ForumIAS", wp, "https://forumias.com/blog", {1566: "prelims", 1230: "mains"}),
-    ("Rau's IAS", wp, "https://compass.rauias.com", {}),  # silent since 10 Jun 2026; costs one request
 ]
 
 
@@ -159,11 +158,11 @@ def lqz(source, base, category):
         q = re.sub(r'<div class="lqz-q-ask">(.*?)</div>', r"<p>\1</p>", q, flags=re.S)
         why = re.sub(r'<div class="lqz-explain-head">.*?</div>', "", why.group(1) if why else "", flags=re.S)
         why, more = split(blocks(why))
-        yield {"source": source, "link": p["link"], "q": numbered(q.strip()), "options": options,
+        yield {"source": source, "q": numbered(q.strip()), "options": options,
                "answer": "abcd".index(answer.group(1)), "why": why, "more": more}
 
 
-def questions(source, link, page):
+def questions(source, page):
     correct = {qid: flags.split(",").index("1") for qid, flags in
                re.findall(r'"(\d+)":\{[^{}]*?"correct":\[([01,]+)\]', page.replace(" ", ""))}
     for block in page.split('class="wpProQuiz_listItem"')[1:]:
@@ -178,7 +177,7 @@ def questions(source, link, page):
         why = re.sub(r'<span class="wpProQuiz_respone_span">.*?</span>\s*(<br\s*/?>)?|<p>\s*<strong>\s*Answer:.*?</p>|<img[^>]*>'
                      r'|<p>\s*<strong>\s*Explanation\s*:?\s*</strong>\s*</p>', "", why, flags=re.S)
         why, more = split(blocks(JUNK.sub("", why)))
-        yield {"source": source, "link": link, "q": numbered(text.group(1).strip()), "options": options,
+        yield {"source": source, "q": numbered(text.group(1).strip()), "options": options,
                "answer": correct[qid.group(1)], "why": why, "more": more}
 
 
