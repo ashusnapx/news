@@ -15,10 +15,12 @@ import android.graphics.Rect
 import android.os.Build
 import android.util.TypedValue
 import android.widget.RemoteViews
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 
 /**
  * Three nudges a day, each skipped when it has nothing worth saying: the morning brief, the afternoon quiz, the
@@ -32,9 +34,16 @@ class Reminder : BroadcastReceiver() {
         private const val CHANNEL = "daily"
         private val SLOTS = listOf("morning" to LocalTime.of(8, 0), "quiz" to LocalTime.of(14, 0), "evening" to LocalTime.of(20, 30))
 
+        private val WEEKLY = DayOfWeek.SUNDAY to LocalTime.of(10, 0)
+
         /** Idempotent: same request codes replace the previous alarms. Called on app open, after reboot, and after each fire. */
         fun schedule(c: Context) {
             val alarms = c.getSystemService(AlarmManager::class.java)
+            // Weekly review, Sunday 10:00: the saved stories and highlights, before they pile up.
+            var week = LocalDateTime.of(LocalDate.now().with(TemporalAdjusters.nextOrSame(WEEKLY.first)), WEEKLY.second)
+            if (week.isBefore(LocalDateTime.now())) week = week.plusWeeks(1)
+            alarms.setWindow(AlarmManager.RTC, week.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), 60 * 60_000L,
+                broadcast(c, SLOTS.size, "weekly"))
             SLOTS.forEachIndexed { code, (slot, at) ->
                 var next = LocalDateTime.of(LocalDate.now(), at)
                 if (next.isBefore(LocalDateTime.now())) next = next.plusDays(1)
@@ -75,6 +84,7 @@ class Reminder : BroadcastReceiver() {
         val nm = c.getSystemService(NotificationManager::class.java)
         if (!nm.areNotificationsEnabled()) return
         val prefs = c.getSharedPreferences("profile", Context.MODE_PRIVATE)
+        if (slot == "weekly") return weekly(c, nm, prefs.getString("name", null)?.ifBlank { null })
         if (!force && System.currentTimeMillis() - prefs.getLong("lastOpen", 0) < 2 * 60 * 60 * 1000) return
         val feed = runCatching { Feed.fetch(c.cacheDir) }.getOrNull() ?: return
         val name = prefs.getString("name", null)?.ifBlank { null }
@@ -100,10 +110,7 @@ class Reminder : BroadcastReceiver() {
             }
         }
 
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, c.getString(R.string.notify_channel), NotificationManager.IMPORTANCE_DEFAULT)
-                .apply { description = c.getString(R.string.notify_channel_desc) }
-        )
+        channel(c, nm)
         // Same filter as the launcher, so the strict intent matching the manifest opts into still lets it through.
         val main = Intent(c, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val tap = if (slot == "quiz") {
@@ -149,6 +156,34 @@ class Reminder : BroadcastReceiver() {
         }
         nm.notify(SLOTS.indexOfFirst { it.first == slot }, builder.build())
     }
+
+    /** Sunday's nudge to revise and clear; nothing saved, nothing sent. Opens the You tab over the feed. */
+    private fun weekly(c: Context, nm: NotificationManager, name: String?) {
+        val saved = Store.saved(c).size
+        val marks = Store.highlights(c).size
+        if (saved + marks == 0) return
+        channel(c, nm)
+        val main = Intent(c, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val tap = PendingIntent.getActivities(c, 12, arrayOf(main, Intent(c, YouActivity::class.java)), PendingIntent.FLAG_IMMUTABLE)
+        val text = c.getString(R.string.notify_weekly_text, saved, marks)
+        nm.notify(
+            SLOTS.size,
+            Notification.Builder(c, CHANNEL)
+                .setSmallIcon(R.drawable.ic_mains)
+                .setColor(c.getColor(R.color.accent))
+                .setContentTitle(if (name != null) c.getString(R.string.notify_weekly_named, name) else c.getString(R.string.notify_weekly))
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
+                .setContentIntent(tap)
+                .setAutoCancel(true)
+                .build(),
+        )
+    }
+
+    private fun channel(c: Context, nm: NotificationManager) = nm.createNotificationChannel(
+        NotificationChannel(CHANNEL, c.getString(R.string.notify_channel), NotificationManager.IMPORTANCE_DEFAULT)
+            .apply { description = c.getString(R.string.notify_channel_desc) }
+    )
 
     /**
      * A 480x240 centre crop in RGB_565: three of them stay far under the notification's parcel size limit,

@@ -1,10 +1,14 @@
 package com.ashusnapx.news
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
+import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -32,6 +36,14 @@ class YouActivity : Activity() {
             it.haptic()
             startActivity(Intent(this, QuizActivity::class.java).putExtra(QuizActivity.REVISE, true))
         }
+        findViewById<View>(R.id.savedClear).setOnClickListener {
+            it.haptic()
+            confirm(R.string.clear_saved_title) { Store.clearSaved(this); render() }
+        }
+        findViewById<View>(R.id.highlightsClear).setOnClickListener {
+            it.haptic()
+            confirm(R.string.clear_highlights_title) { Store.clearHighlights(this); render() }
+        }
         edgeToEdge { i ->
             val side = 20.dp + gutter(windowWidth - i.left - i.right, 680.dp)
             findViewById<View>(R.id.page).setPadding(i.left + side, i.top + 72.dp, i.right + side, i.bottom + 32.dp)
@@ -43,6 +55,11 @@ class YouActivity : Activity() {
     override fun onStart() {
         super.onStart()
         render() // back from an article or a revision: counts may have moved
+    }
+
+    override fun onStop() {
+        Store.pruneKept(this) // past the undo window: drop stored stories no highlight points at
+        super.onStop()
     }
 
     private fun render() {
@@ -63,6 +80,7 @@ class YouActivity : Activity() {
 
         val saved = Store.saved(this)
         findViewById<TextView>(R.id.savedLabel).text = getString(R.string.saved_label, saved.size)
+        findViewById<View>(R.id.savedClear).visibility = if (saved.isEmpty()) View.GONE else View.VISIBLE
         findViewById<LinearLayout>(R.id.savedList).apply {
             removeAllViews()
             if (saved.isEmpty()) addView(hint(getString(R.string.saved_empty)))
@@ -71,6 +89,7 @@ class YouActivity : Activity() {
 
         val marks = Store.highlights(this).asReversed()
         findViewById<TextView>(R.id.highlightsLabel).text = getString(R.string.highlights_label, marks.size)
+        findViewById<View>(R.id.highlightsClear).visibility = if (marks.isEmpty()) View.GONE else View.VISIBLE
         findViewById<LinearLayout>(R.id.highlightList).apply {
             removeAllViews()
             if (marks.isEmpty()) addView(hint(getString(R.string.highlights_empty)))
@@ -78,7 +97,24 @@ class YouActivity : Activity() {
         }
     }
 
-    private fun row(item: Item): View = layoutInflater.inflate(R.layout.item_story, findViewById(R.id.savedList), false).apply {
+    /** A saved story, with a trash button over its corner. */
+    private fun row(item: Item): View = FrameLayout(this).apply {
+        val card = story(item)
+        addView(card)
+        addView(ImageButton(this@YouActivity).apply {
+            setImageResource(R.drawable.ic_trash)
+            background = getDrawable(R.drawable.round_btn)
+            contentDescription = getString(R.string.delete_saved)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(11.dp, 11.dp, 11.dp, 11.dp)
+            setOnClickListener {
+                it.haptic()
+                removeWithUndo(this@apply, undo = { Store.toggleSave(this@YouActivity, item) }) { Store.toggleSave(this@YouActivity, item) }
+            }
+        }, FrameLayout.LayoutParams(40.dp, 40.dp, Gravity.TOP or Gravity.END).apply { setMargins(0, 8.dp, 8.dp, 0) })
+    }
+
+    private fun story(item: Item): View = layoutInflater.inflate(R.layout.item_story, findViewById(R.id.savedList), false).apply {
         clipToOutline = true
         findViewById<View>(R.id.thumb).clipToOutline = true
         findViewById<TextView>(R.id.title).text = item.title
@@ -96,13 +132,48 @@ class YouActivity : Activity() {
     private fun quote(h: Store.Highlight): View = layoutInflater.inflate(R.layout.item_highlight, findViewById(R.id.highlightList), false).apply {
         findViewById<TextView>(R.id.quote).text = h.text
         findViewById<TextView>(R.id.from).text = h.title
-        setOnLongClickListener {
+        val row = this
+        setOnClickListener {
             it.haptic()
-            Store.removeHighlight(this@YouActivity, h)
-            Toast.makeText(this@YouActivity, R.string.unsaved_toast, Toast.LENGTH_SHORT).show()
-            render()
-            true
+            startActivity(Intent(this@YouActivity, ArticleActivity::class.java).putExtra(ArticleActivity.LINK, h.link).putExtra(ArticleActivity.KEPT, true))
         }
+        findViewById<View>(R.id.delete).setOnClickListener {
+            it.haptic()
+            removeWithUndo(row, undo = { Store.restoreHighlight(this@YouActivity, h) }) { Store.removeHighlight(this@YouActivity, h) }
+        }
+    }
+
+    /** Fade the row out, delete, and offer Undo for six seconds. */
+    private fun removeWithUndo(view: View, undo: () -> Unit, delete: () -> Unit) {
+        delete()
+        view.animate().alpha(0f).translationX(view.width / 3f).setDuration(220).withEndAction { render() }
+        val pill = findViewById<View>(R.id.undo)
+        pill.removeCallbacks(hideUndo)
+        pill.setOnClickListener {
+            it.haptic()
+            undo()
+            pill.visibility = View.GONE
+            render()
+        }
+        if (pill.visibility != View.VISIBLE) {
+            pill.visibility = View.VISIBLE
+            pill.translationY = 120.dp.toFloat()
+            pill.animate().translationY(-24.dp.toFloat()).setDuration(240)
+        }
+        pill.postDelayed(hideUndo, 6000)
+    }
+
+    private val hideUndo = Runnable {
+        findViewById<View>(R.id.undo).apply { animate().translationY(120.dp.toFloat()).setDuration(200).withEndAction { visibility = View.GONE } }
+    }
+
+    private fun confirm(title: Int, yes: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(R.string.clear_body)
+            .setPositiveButton(R.string.clear_yes) { _, _ -> yes() }
+            .setNegativeButton(R.string.clear_no, null)
+            .show()
     }
 
     private fun hint(text: String) = TextView(this).apply {

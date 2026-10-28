@@ -60,8 +60,25 @@ object Store {
         return true
     }
 
+    fun clearSaved(c: Context) = savedDir(c).listFiles().orEmpty().forEach { it.delete() }
+
     fun saved(c: Context): List<Item> = savedDir(c).listFiles().orEmpty().sortedByDescending { it.lastModified() }
         .mapNotNull { runCatching { Item.from(JSONObject(it.readText())) }.getOrNull() }
+
+    // --- Kept articles: the full story behind a highlight, so it opens after the feed forgets it. ---
+
+    private fun keptDir(c: Context) = File(c.filesDir, "kept").apply { mkdirs() }
+    private fun keptFile(c: Context, link: String) = File(keptDir(c), "${link.hashCode().toUInt()}.json")
+
+    /** A story the phone holds: saved, or kept for its highlights. */
+    fun article(c: Context, link: String): Item? = listOf(savedFile(c, link), keptFile(c, link)).firstOrNull { it.exists() }
+        ?.let { runCatching { Item.from(JSONObject(it.readText())) }.getOrNull() }
+
+    /** Kept copies whose last highlight is gone. Run when leaving the You tab, after its undo window. */
+    fun pruneKept(c: Context) {
+        val live = highlights(c).mapTo(HashSet()) { keptFile(c, it.link).name }
+        keptDir(c).listFiles().orEmpty().filter { it.name !in live }.forEach { it.delete() }
+    }
 
     // --- Highlights: the passage, and which story it came from. ---
 
@@ -74,8 +91,20 @@ object Store {
     }
 
     fun highlight(c: Context, text: String, item: Item) {
+        keptFile(c, item.link).writeText(item.json().toString())
         val a = read(highlightsFile(c))
         a.put(JSONObject().put("text", text.trim().take(1000)).put("title", item.title).put("link", item.link))
+        highlightsFile(c).writeText(a.toString())
+    }
+
+    fun clearHighlights(c: Context) {
+        highlightsFile(c).delete()
+        keptDir(c).listFiles().orEmpty().forEach { it.delete() }
+    }
+
+    fun restoreHighlight(c: Context, h: Highlight) {
+        val a = read(highlightsFile(c))
+        a.put(JSONObject().put("text", h.text).put("title", h.title).put("link", h.link))
         highlightsFile(c).writeText(a.toString())
     }
 

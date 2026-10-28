@@ -117,7 +117,32 @@
                     android:textSize="14.5sp" />
             </LinearLayout>
 
-            <TextView android:id="@+id/savedLabel" style="@style/Label" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="30dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/savedLabel"
+                    style="@style/Label"
+                    android:layout_width="0dp"
+                    android:layout_marginTop="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/savedClear"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:paddingHorizontal="8dp"
+                    android:text="@string/clear_all"
+                    android:textColor="@color/bad"
+                    android:textFontWeight="700"
+                    android:textSize="12.5sp" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/savedList"
@@ -126,7 +151,32 @@
                 android:layout_marginTop="10dp"
                 android:orientation="vertical" />
 
-            <TextView android:id="@+id/highlightsLabel" style="@style/Label" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="30dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/highlightsLabel"
+                    style="@style/Label"
+                    android:layout_width="0dp"
+                    android:layout_marginTop="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/highlightsClear"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:paddingHorizontal="8dp"
+                    android:text="@string/clear_all"
+                    android:textColor="@color/bad"
+                    android:textFontWeight="700"
+                    android:textSize="12.5sp" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/highlightList"
@@ -136,6 +186,22 @@
                 android:orientation="vertical" />
         </LinearLayout>
     </ScrollView>
+
+    <!-- After a delete: one chance to change your mind. -->
+    <TextView
+        android:id="@+id/undo"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:background="@drawable/nav_bar"
+        android:elevation="10dp"
+        android:gravity="center"
+        android:paddingHorizontal="22dp"
+        android:text="@string/removed_undo"
+        android:textColor="@color/dock_ink"
+        android:textFontWeight="700"
+        android:textSize="14sp"
+        android:visibility="gone" />
 
     <ImageButton
         android:id="@+id/back"

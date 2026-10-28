@@ -61,7 +61,10 @@
     <string name="to_paper">Switch to paper</string>
     <string name="to_screen">Switch to screen</string>
     <string name="notify_channel">Daily brief</string>
-    <string name="notify_channel_desc">Morning brief, afternoon quiz, evening catch-up. At most three a day.</string>
+    <string name="notify_channel_desc">Morning brief, afternoon quiz, evening catch-up, and a Sunday review of what you saved.</string>
+    <string name="notify_weekly">Weekly review 📚</string>
+    <string name="notify_weekly_named">Weekly review, %1$s 📚</string>
+    <string name="notify_weekly_text">%1$d saved stories and %2$d highlights. Revise them, then clear what you no longer need.</string>
     <string name="notify_morning">Good morning ☀️</string>
     <string name="notify_morning_named">Good morning, %1$s ☀️</string>
     <string name="notify_morning_text">%1$d stories today · Top: %2$s</string>
@@ -86,6 +89,15 @@
     <string name="saved_empty">Long-press a story on the feed, or tap Save in an article. Saved stories stay after the day rolls over.</string>
     <string name="highlights_label">HIGHLIGHTS  ·  %1$d</string>
     <string name="highlights_empty">Select text in an article and tap Highlight. Long-press a highlight here to remove it.</string>
+    <string name="clear_all">Clear all</string>
+    <string name="removed_undo">Removed  ·  Undo</string>
+    <string name="delete_saved">Remove this saved story</string>
+    <string name="delete_highlight">Delete this highlight</string>
+    <string name="clear_saved_title">Remove all saved stories?</string>
+    <string name="clear_highlights_title">Delete all highlights?</string>
+    <string name="clear_body">They are kept only on this phone, so this cannot be undone.</string>
+    <string name="clear_yes">Delete</string>
+    <string name="clear_no">Keep</string>
     <string name="highlight">Highlight</string>
     <string name="highlighted">Highlighted</string>
     <string name="highlight_pill">✎  Highlight</string>

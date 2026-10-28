@@ -57,6 +57,7 @@ class ArticleActivity : Activity() {
         const val LINK = "link"
         const val TAB = "tab"
         const val SAVED = "saved" // open from the saved stories, which outlive the feed
+        const val KEPT = "kept" // open the story behind a highlight, kept on the phone
         private val IMAGE = Regex("""\.(jpe?g|png|webp|gif)$""", RegexOption.IGNORE_CASE)
 
         // App fonts served to the WebView under a host that never reaches the network.
@@ -98,6 +99,7 @@ class ArticleActivity : Activity() {
         val tab = intent.getStringExtra(TAB)
         // shortcut: the feed lives in memory only; after process death we fall back to the list, which refetches
         stories = if (intent.getBooleanExtra(SAVED, false)) Store.saved(this).map { listOf(it) }
+            else if (intent.getBooleanExtra(KEPT, false)) listOfNotNull(link?.let { Store.article(this, it) }).map { listOf(it) }
             else Feed.current?.stories.orEmpty().filter { s -> tab == null || s.any { it.kind == tab } }
         story = stories.find { s -> s.any { it.link == link } } ?: return finish()
         setContentView(R.layout.activity_article)
