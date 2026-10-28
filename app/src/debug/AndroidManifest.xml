@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: lets `adb shell am broadcast` fire a reminder for testing. Release keeps it unexported. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <receiver
+            android:name=".Reminder"
+            android:exported="true"
+            tools:replace="android:exported" />
+    </application>
+</manifest>

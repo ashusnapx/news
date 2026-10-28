@@ -52,10 +52,11 @@ class Reminder : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) return schedule(c) // alarms do not survive a reboot
         if (intent.action != ACTION) return
         val slot = intent.getStringExtra("slot") ?: return
+        val force = intent.getBooleanExtra("force", false) // skips the recently-opened rule; only the system and this app can send it
         val done = goAsync() // the feed fetch happens off the main thread, inside the broadcast's time budget
         Thread {
             try {
-                remind(c, slot)
+                remind(c, slot, force)
             } finally {
                 schedule(c) // next one: tomorrow, same time
                 done.finish()
@@ -63,11 +64,11 @@ class Reminder : BroadcastReceiver() {
         }.start()
     }
 
-    private fun remind(c: Context, slot: String) {
+    private fun remind(c: Context, slot: String, force: Boolean) {
         val nm = c.getSystemService(NotificationManager::class.java)
         if (!nm.areNotificationsEnabled()) return
         val prefs = c.getSharedPreferences("profile", Context.MODE_PRIVATE)
-        if (System.currentTimeMillis() - prefs.getLong("lastOpen", 0) < 2 * 60 * 60 * 1000) return
+        if (!force && System.currentTimeMillis() - prefs.getLong("lastOpen", 0) < 2 * 60 * 60 * 1000) return
         val feed = runCatching { Feed.fetch(c.cacheDir) }.getOrNull() ?: return
         val name = prefs.getString("name", null)?.ifBlank { null }
         val reads = Reads.all(c)
