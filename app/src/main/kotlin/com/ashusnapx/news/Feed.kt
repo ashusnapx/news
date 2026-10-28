@@ -1,6 +1,7 @@
 package com.ashusnapx.news
 
 import android.net.http.HttpResponseCache
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -23,8 +24,11 @@ typealias Story = List<Item>
 
 val Story.lead get() = firstOrNull { it.image != null } ?: first()
 
-/** A quiz MCQ. [q] and [why] are small HTML fragments; [answer] indexes [options]. */
-class Question(val source: String, val q: String, val options: List<String>, val answer: Int, val why: String, val more: String)
+/** A quiz MCQ. [q] is a small HTML fragment; [answer] indexes [options]; the explanation comes as [Block]s. */
+class Question(val source: String, val q: String, val options: List<String>, val answer: Int, val why: List<Block>, val more: List<Block>)
+
+/** One explanation line: [kind] "p" paragraph, "li" bullet at [depth], "h" sub-heading. [text] keeps only <b>. */
+class Block(val kind: String, val depth: Int, val text: String)
 
 class Feed(val updated: String, val stories: List<Story>, val quiz: List<Question>) {
     companion object {
@@ -55,7 +59,8 @@ class Feed(val updated: String, val stories: List<Story>, val quiz: List<Questio
             val quiz = List(qs?.length() ?: 0) { i ->
                 val x = qs!!.getJSONObject(i)
                 val opts = x.getJSONArray("options")
-                Question(x.getString("source"), x.getString("q"), List(opts.length(), opts::getString), x.getInt("answer"), x.getString("why"), x.optString("more"))
+                Question(x.getString("source"), x.getString("q"), List(opts.length(), opts::getString), x.getInt("answer"),
+                    blocks(x.optJSONArray("why")), blocks(x.optJSONArray("more")))
             }
             return Feed(o.getString("updated"), List(arr.length()) { i ->
                 val s = arr.getJSONArray(i)
@@ -67,6 +72,10 @@ class Feed(val updated: String, val stories: List<Story>, val quiz: List<Questio
                     )
                 }
             }, quiz)
+        }
+
+        private fun blocks(a: JSONArray?) = List(a?.length() ?: 0) { i ->
+            a!!.getJSONArray(i).let { Block(it.getString(0), it.getInt(1), it.getString(2)) }
         }
 
         private fun get(cacheControl: String) = URL(URL).openConnection().run {

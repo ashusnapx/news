@@ -12,13 +12,17 @@ import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.view.WindowInsets
+import android.view.inputmethod.EditorInfo
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import android.webkit.WebView
 import android.widget.AbsListView
 import android.widget.BaseAdapter
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -46,6 +50,11 @@ class MainActivity : Activity() {
     private lateinit var readText: TextView
     private lateinit var readBar: View
     private lateinit var carousel: Carousel
+    private lateinit var greetEmoji: TextView
+    private lateinit var greetHello: TextView
+    private lateinit var greetName: TextView
+    private lateinit var greetLine: TextView
+    private val profile by lazy { getSharedPreferences("profile", MODE_PRIVATE) }
     private val spinner by lazy {
         ObjectAnimator.ofFloat(refresh, View.ROTATION, 0f, 360f).apply {
             duration = 800
@@ -85,6 +94,12 @@ class MainActivity : Activity() {
         readBar = header.findViewById(R.id.readBar)
         header.findViewById<View>(R.id.readTrack).clipToOutline = true
         carousel = Carousel(this, layoutInflater.inflate(R.layout.item_carousel, list, false)) { v, image, lead -> open(v, image, lead) }
+        greetEmoji = header.findViewById(R.id.greetEmoji)
+        greetHello = header.findViewById(R.id.greetHello)
+        greetName = header.findViewById(R.id.greetName)
+        greetLine = header.findViewById(R.id.greetLine)
+        header.findViewById<View>(R.id.greetCard).setOnLongClickListener { it.haptic(); welcome(); true } // change the name
+        if (!profile.contains("name")) welcome()
 
         tab = savedInstanceState?.getString("tab") ?: tab
         selectTab(tab, animate = false)
@@ -134,6 +149,7 @@ class MainActivity : Activity() {
         if (loading) return
         loading = true
         label.text = getString(R.string.today, DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(LocalDate.now(IST)).uppercase())
+        greet()
         spinner.start()
         if (shown == null) summary.setText(R.string.loading)
         Thread {
@@ -166,7 +182,7 @@ class MainActivity : Activity() {
         val n = feed.quiz.size
         quizCard.visibility = if (n == 0) View.GONE else View.VISIBLE
         quizTitle.text = resources.getQuantityString(R.plurals.questions, n, n)
-        quizMeta.text = getString(R.string.quiz_meta, (n + 1) / 2)
+        quizMeta.text = getString(R.string.quiz_meta, (n * 6 + 4) / 5) // 72 s a question, the exam's pace
         tabs.visibility = if (feed.stories.isEmpty()) View.GONE else View.VISIBLE
         KINDS.forEachIndexed { i, (kind, label) ->
             tabPills[i].text = getString(R.string.tab, getString(label), feed.stories.count { s -> s.any { it.kind == kind } })
@@ -188,7 +204,16 @@ class MainActivity : Activity() {
         if (!animate) return
         tabPills[KINDS.indexOfFirst { it.first == kind }].bounce()
         filter()
-        list.scheduleLayoutAnimation()
+        // Only the rows below the header rise in; the header, tabs and quiz card stay put.
+        list.post {
+            for (i in 0 until list.childCount) {
+                val row = list.getChildAt(i)
+                if (list.getPositionForView(row) < list.headerViewsCount) continue
+                row.alpha = 0f
+                row.translationY = 28.dp.toFloat()
+                row.animate().alpha(1f).translationY(0f).setStartDelay(i * 45L).setDuration(300).setInterpolator(DecelerateInterpolator())
+            }
+        }
     }
 
     private fun filter() {
@@ -209,11 +234,58 @@ class MainActivity : Activity() {
         readText.setTextColor(getColor(if (all) R.color.good else R.color.ink2))
         readBar.setBackgroundColor(getColor(if (all) R.color.good else R.color.accent))
         readBar.animate().scaleX(if (stories.isEmpty()) 0f else done / stories.size.toFloat()).setDuration(500)
+        val unread = Feed.current?.stories.orEmpty().count { !it.read() }
+        greetLine.text = if (unread == 0 && done > 0) getString(R.string.greet_done)
+            else getString(R.string.greet_line, resources.getQuantityString(R.plurals.stories, unread, unread))
         if (all && !caughtUp) {
             readText.bounce()
             readText.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
         }
         caughtUp = all
+    }
+
+    /** Greeting by the hour in IST, with the name given on first launch. */
+    private fun greet() {
+        val (emoji, hello) = when (java.time.LocalTime.now(IST).hour) {
+            in 5..11 -> "🌅" to R.string.hello_morning
+            in 12..16 -> "☀️" to R.string.hello_afternoon
+            in 17..20 -> "🌆" to R.string.hello_evening
+            else -> "🌙" to R.string.hello_night
+        }
+        greetEmoji.text = emoji
+        greetHello.setText(hello)
+        greetName.text = profile.getString("name", null)?.ifBlank { null } ?: getString(R.string.hello_reader)
+    }
+
+    /** One question on first launch; long-press the greeting to change the answer. Skipping counts as answered. */
+    private fun welcome() {
+        val screen = findViewById<View>(R.id.welcome)
+        val body = findViewById<View>(R.id.welcomeBody)
+        val input = findViewById<EditText>(R.id.nameInput)
+        screen.setOnApplyWindowInsetsListener { _, i ->
+            val b = i.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime() or WindowInsets.Type.displayCutout())
+            val side = 32.dp + gutter(windowWidth - b.left - b.right, 520.dp)
+            body.setPadding(b.left + side, b.top + 24.dp, b.right + side, b.bottom + 24.dp) // rides up with the keyboard
+            i
+        }
+        input.setText(profile.getString("name", ""))
+        screen.visibility = View.VISIBLE
+        screen.alpha = 1f
+        screen.requestApplyInsets()
+        input.requestFocus()
+        input.post { window.insetsController?.show(WindowInsets.Type.ime()) }
+        fun done(name: String) {
+            // Plain text only: printable characters, trimmed, capped (also capped by maxLength in the layout).
+            profile.edit().putString("name", name.filter { !it.isISOControl() }.trim().take(30)).apply()
+            window.insetsController?.hide(WindowInsets.Type.ime())
+            greet()
+            screen.animate().alpha(0f).setDuration(260).withEndAction { screen.visibility = View.GONE }
+        }
+        findViewById<View>(R.id.nameGo).setOnClickListener { it.haptic(); done(input.text.toString()) }
+        findViewById<View>(R.id.nameSkip).setOnClickListener { it.haptic(); done("") }
+        input.setOnEditorActionListener { _, action, _ ->
+            (action == EditorInfo.IME_ACTION_DONE).also { if (it) done(input.text.toString()) }
+        }
     }
 
     /** Row 0 is the carousel of the [TOP] most-covered stories; the rest are compact cards, [cols] per row. */

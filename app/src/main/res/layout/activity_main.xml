@@ -19,4 +19,6 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:background="@drawable/top_scrim" />
+
+    <include layout="@layout/welcome" />
 </FrameLayout>

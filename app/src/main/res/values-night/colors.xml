@@ -2,6 +2,8 @@
 <resources>
     <color name="bg">#0E0E11</color>
     <color name="bg_clear">#000E0E11</color> <!-- bg at zero alpha: fades without a grey midpoint -->
+    <color name="greet_start">#262350</color>
+    <color name="greet_end">#18181D</color>
     <color name="surface">#18181D</color>
     <color name="ink">#F2F1F5</color>
     <color name="ink2">#A09EAB</color>
