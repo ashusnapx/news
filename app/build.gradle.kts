@@ -23,13 +23,23 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        // The release key lives outside the repo: ~/.android/upsc-today-release.jks, with its passwords in
+        // ~/.gradle/gradle.properties. Lose it and installed copies can never be updated; keep a backup.
+        create("release") {
+            providers.gradleProperty("releaseStoreFile").orNull?.let { storeFile = file(it) }
+            storePassword = providers.gradleProperty("releaseStorePassword").orNull
+            keyAlias = providers.gradleProperty("releaseKeyAlias").orNull
+            keyPassword = providers.gradleProperty("releaseKeyPassword").orNull
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // shortcut: signed with the debug key for personal sideloading; make a real keystore before any store release
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
