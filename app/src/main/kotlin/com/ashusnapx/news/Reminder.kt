@@ -12,6 +12,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
+import android.os.Build
+import android.util.TypedValue
 import android.widget.RemoteViews
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -133,6 +135,8 @@ class Reminder : BroadcastReceiver() {
                         setTextViewText(R.id.count, "${i + 1} / ${slides.size}")
                     })
                 }
+                // Rounded by the system's own outline clip (Android 12+): full-quality photos, no extra bytes in the parcel.
+                if (Build.VERSION.SDK_INT >= 31) carousel.setViewOutlinePreferredRadius(R.id.flipper, 16f, TypedValue.COMPLEX_UNIT_DIP)
                 builder.setStyle(Notification.DecoratedCustomViewStyle()).setCustomContentView(small).setCustomBigContentView(carousel)
             }
             // One photo: a thumbnail while collapsed, the full picture when expanded, never both at once.
