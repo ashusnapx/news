@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/quote_bar"
+    android:orientation="vertical"
+    android:paddingVertical="14dp"
+    android:paddingStart="28dp"
+    android:paddingEnd="16dp">
+
+    <TextView
+        android:id="@+id/quote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/literata"
+        android:lineSpacingExtra="4dp"
+        android:textColor="@color/ink"
+        android:textSize="15.5sp" />
+
+    <TextView
+        android:id="@+id/from"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/ink2"
+        android:textFontWeight="500"
+        android:textSize="12sp" />
+</LinearLayout>

@@ -2,7 +2,18 @@ package com.ashusnapx.news
 
 import android.app.Activity
 import android.app.SharedElementCallback
+import android.content.ClipboardManager
 import android.content.res.Configuration
+import android.graphics.Rect
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.text.Html
+import android.text.TextUtils
+import android.view.ActionMode
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.Toast
+import java.util.Locale
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Shader
@@ -45,6 +56,7 @@ class ArticleActivity : Activity() {
     companion object {
         const val LINK = "link"
         const val TAB = "tab"
+        const val SAVED = "saved" // open from the saved stories, which outlive the feed
         private val IMAGE = Regex("""\.(jpe?g|png|webp|gif)$""", RegexOption.IGNORE_CASE)
 
         // App fonts served to the WebView under a host that never reaches the network.
@@ -85,7 +97,8 @@ class ArticleActivity : Activity() {
         val link = intent.getStringExtra(LINK)
         val tab = intent.getStringExtra(TAB)
         // shortcut: the feed lives in memory only; after process death we fall back to the list, which refetches
-        stories = Feed.current?.stories.orEmpty().filter { s -> tab == null || s.any { it.kind == tab } }
+        stories = if (intent.getBooleanExtra(SAVED, false)) Store.saved(this).map { listOf(it) }
+            else Feed.current?.stories.orEmpty().filter { s -> tab == null || s.any { it.kind == tab } }
         story = stories.find { s -> s.any { it.link == link } } ?: return finish()
         setContentView(R.layout.activity_article)
         scroll = findViewById(R.id.scroll)
@@ -102,6 +115,17 @@ class ArticleActivity : Activity() {
         paperBtn = findViewById(R.id.paperBtn)
         paper = prefs.getBoolean("paper", false)
         paperBtn.setOnClickListener { it.haptic(); togglePaper() }
+        listenBtn = findViewById(R.id.listen)
+        saveBtn = findViewById(R.id.save)
+        listenBtn.setOnClickListener { it.haptic(); if (speaking) stopListening() else listen() }
+        saveBtn.setOnClickListener {
+            it.haptic()
+            it.bounce()
+            val now = Store.toggleSave(this, story[selected])
+            Toast.makeText(this, if (now) R.string.saved_toast else R.string.unsaved_toast, Toast.LENGTH_SHORT).show()
+            paintSave()
+        }
+        findViewById<View>(R.id.share).setOnClickListener { it.haptic(); Share.story(this, story[selected]) }
         val nextWrap = findViewById<View>(R.id.nextWrap)
         val back = findViewById<View>(R.id.back)
         hero.layoutParams.height = minOf(300.dp, windowManager.currentWindowMetrics.bounds.height() * 2 / 5) // landscape, folds
@@ -155,7 +179,8 @@ class ArticleActivity : Activity() {
     private fun open(s: Story) {
         story = s
         intent.putExtra(LINK, s.lead.link) // a rotation reopens this story, not the one we started on
-        Reads.mark(this, s)
+        if (Reads.mark(this, s)) Store.countRead(this) // first open only: today's goal and the streak
+        stopListening()
         val lead = s.lead
         hasHero = lead.image != null
         hero.visibility = if (hasHero) View.VISIBLE else View.GONE
@@ -231,6 +256,7 @@ class ArticleActivity : Activity() {
     }
 
     override fun onDestroy() {
+        tts?.shutdown()
         web?.destroy()
         super.onDestroy()
     }
@@ -257,7 +283,9 @@ class ArticleActivity : Activity() {
         bar.text = item.title
         val color = getColor(sourceColor(item.source))
         meta.text = SpannableStringBuilder().append(item.source, ForegroundColorSpan(color), 0)
+            .append(if (item.gs.isEmpty()) "" else "  ·  " + item.gs.joinToString(" · "))
             .append(getString(R.string.meta, item.minutes))
+        paintSave(item)
         progress.setBackgroundColor(color)
         if (item.image != null) {
             heroUrl = item.image
@@ -265,7 +293,12 @@ class ArticleActivity : Activity() {
         }
         // A fresh WebView per article: a reused one keeps the old (taller) height inside the ScrollView.
         web?.let { body.removeView(it); it.destroy() }
-        web = WebView(this).apply {
+        web = object : WebView(this) {
+            // "Highlight" joins the selection menu. With scripts off the selection is read the one way left:
+            // copy it with the menu's own Copy, then read back the clip this app just wrote.
+            override fun startActionMode(callback: ActionMode.Callback, type: Int): ActionMode? =
+                super.startActionMode(highlighter(callback, item), type)
+        }.apply {
             setBackgroundColor(Color.TRANSPARENT)
             isVerticalScrollBarEnabled = false
             // Scraped third-party HTML: render only. No scripts, no local files, no mixed content.
@@ -299,7 +332,7 @@ class ArticleActivity : Activity() {
                 }
             })
             setOnTouchListener { _, e -> taps.onTouchEvent(e); false } // observe only: the WebView still scrolls and selects
-            loadDataWithBaseURL(item.link, page(item.html, item.source), "text/html", "utf-8", null)
+            loadDataWithBaseURL(item.link, page(marked(item), item.source), "text/html", "utf-8", null)
         }
         body.addView(web, MATCH_PARENT, WRAP_CONTENT)
     }
@@ -323,6 +356,7 @@ h1,h2{font-size:1.2em}
 b,strong{font-weight:600}
 img{height:auto!important;border-radius:16px;margin:12px 0}
 a{color:$src!important;text-decoration-thickness:1px;text-underline-offset:3px}
+body mark{background:${src}33!important;border-radius:3px;padding:0 2px}
 ul,ol{padding-left:1.25em}li{margin:.4em 0}li::marker{color:$src}
 table{border-collapse:collapse;display:block;overflow-x:auto;margin:1.2em 0;font:15px/1.5 Jak,sans-serif!important}
 td,th{border:1px solid $line;padding:10px;vertical-align:top}
@@ -396,6 +430,111 @@ blockquote{margin:1.2em 0;padding:2px 0 2px 16px;border-left:3px solid $src;font
             })
         }
     }
+
+    // --- Listen: the phone's own text-to-speech, offline, Indian English when installed. ---
+
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var speaking = false
+    private lateinit var listenBtn: TextView
+    private lateinit var saveBtn: TextView
+
+    private fun listen() {
+        val item = story[selected]
+        val text = item.title + ".\n" + Html.fromHtml(item.html, Html.FROM_HTML_MODE_COMPACT).toString()
+        speaking = true
+        paintListen()
+        if (ttsReady) return speak(text)
+        tts = TextToSpeech(this) { status ->
+            if (status != TextToSpeech.SUCCESS) {
+                Toast.makeText(this, R.string.listen_failed, Toast.LENGTH_SHORT).show()
+                return@TextToSpeech stopListening()
+            }
+            ttsReady = true
+            tts?.apply {
+                if (setLanguage(Locale("en", "IN")) < TextToSpeech.LANG_AVAILABLE) language = Locale.UK
+                setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(id: String) = Unit
+                    override fun onDone(id: String) { if (id == "last") runOnUiThread { stopListening() } }
+                    @Deprecated("API 21") override fun onError(id: String) = runOnUiThread { stopListening() }
+                })
+            }
+            if (speaking) speak(text)
+        }
+    }
+
+    /** Engines cap one utterance; queue the article paragraph by paragraph within that cap. */
+    private fun speak(text: String) {
+        val max = TextToSpeech.getMaxSpeechInputLength() - 100
+        val parts = text.split(Regex("\n+")).map { it.trim() }.filter { it.isNotEmpty() }
+            .flatMap { p -> p.chunked(max) }
+        tts?.stop()
+        parts.forEachIndexed { i, p -> tts?.speak(p, TextToSpeech.QUEUE_ADD, null, if (i == parts.lastIndex) "last" else "p$i") }
+    }
+
+    private fun stopListening() {
+        if (!this::listenBtn.isInitialized) return
+        speaking = false
+        tts?.stop()
+        paintListen()
+    }
+
+    private fun paintListen() {
+        listenBtn.setText(if (speaking) R.string.stop_listen else R.string.listen)
+        listenBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(if (speaking) R.drawable.ic_pause else R.drawable.ic_listen, 0, 0, 0)
+    }
+
+    private fun paintSave(item: Item = story[selected]) {
+        if (!this::saveBtn.isInitialized) return
+        val saved = Store.isSaved(this, item.link)
+        saveBtn.setText(if (saved) R.string.saved else R.string.save)
+        saveBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(if (saved) R.drawable.ic_saved else R.drawable.ic_save, 0, 0, 0)
+    }
+
+    // --- Highlights ---
+
+    private fun highlighter(base: ActionMode.Callback, item: Item) = object : ActionMode.Callback2() {
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            val ok = base.onCreateActionMode(mode, menu)
+            menu.add(Menu.NONE, R.id.highlight_action, 0, R.string.highlight)
+            return ok
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu) = base.onPrepareActionMode(mode, menu)
+
+        override fun onActionItemClicked(mode: ActionMode, menuItem: MenuItem): Boolean {
+            if (menuItem.itemId != R.id.highlight_action) return base.onActionItemClicked(mode, menuItem)
+            val copy = (0 until mode.menu.size()).map { mode.menu.getItem(it) }.firstOrNull {
+                it.itemId == android.R.id.copy || it.title?.toString().equals(getString(android.R.string.copy), ignoreCase = true)
+            }
+            if (copy == null) {
+                Toast.makeText(this@ArticleActivity, R.string.highlight_failed, Toast.LENGTH_SHORT).show()
+                return true
+            }
+            base.onActionItemClicked(mode, copy)
+            body.postDelayed({
+                val text = getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text?.toString()?.trim()
+                if (text.isNullOrEmpty()) {
+                    Toast.makeText(this@ArticleActivity, R.string.highlight_failed, Toast.LENGTH_SHORT).show()
+                } else {
+                    Store.highlight(this@ArticleActivity, text, item)
+                    body.haptic()
+                    Toast.makeText(this@ArticleActivity, R.string.highlighted, Toast.LENGTH_SHORT).show()
+                }
+                mode.finish()
+            }, 150)
+            return true
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) = base.onDestroyActionMode(mode)
+
+        override fun onGetContentRect(mode: ActionMode, view: View, outRect: Rect) =
+            if (base is ActionMode.Callback2) base.onGetContentRect(mode, view, outRect) else super.onGetContentRect(mode, view, outRect)
+    }
+
+    /** Saved highlights shown in place: first verbatim occurrence of each, where it is not split by markup. */
+    private fun marked(item: Item): String = Store.highlights(this).filter { it.link == item.link }
+        .fold(item.html) { html, h -> TextUtils.htmlEncode(h.text).let { t -> html.replaceFirst(t, "<mark>$t</mark>") } }
 
     private fun viewImage(url: String) {
         if (url.startsWith("https://")) startActivity(Intent(this, ImageActivity::class.java).putExtra(ImageActivity.URL, url))

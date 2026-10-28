@@ -379,10 +379,26 @@
                 android:textSize="28sp" />
 
             <TextView
-                android:id="@+id/again"
+                android:id="@+id/share"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="32dp"
+                android:background="@drawable/skip_btn"
+                android:drawableStart="@drawable/ic_share"
+                android:drawableTint="@color/ink"
+                android:gravity="center"
+                android:paddingHorizontal="96dp"
+                android:stateListAnimator="@animator/press"
+                android:text="@string/share_result"
+                android:textColor="@color/ink"
+                android:textFontWeight="700"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/again"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/skip_btn"
                 android:gravity="center"
                 android:stateListAnimator="@animator/press"

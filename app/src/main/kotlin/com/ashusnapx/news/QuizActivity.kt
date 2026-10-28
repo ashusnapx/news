@@ -32,18 +32,20 @@ import java.util.Locale
  * scoreboard strip fills green/red/grey. No coaching names: sets are mixed and numbered.
  */
 class QuizActivity : Activity() {
-    private companion object {
-        const val PACE_MS = 72_000L // 120 minutes / 100 questions
-        const val SET = 10
-        const val PENDING = -1
-        const val WRONG = 0
-        const val RIGHT = 1
-        const val SKIPPED = 2
+    companion object {
+        const val REVISE = "revise" // open straight into the revision deck
+        private const val PACE_MS = 72_000L // 120 minutes / 100 questions
+        private const val SET = 10
+        private const val PENDING = -1
+        private const val WRONG = 0
+        private const val RIGHT = 1
+        private const val SKIPPED = 2
     }
 
     private lateinit var all: List<Question>
     private lateinit var sets: List<List<Question>> // index 0 = everything, then mixed sets of SET
     private var set = 0
+    private var reviseSet = -1 // index of the revision deck among [sets], -1 when nothing is due
     private val quiz get() = sets[set]
     private var outcomes = IntArray(0)
     private var index = 0
@@ -78,7 +80,9 @@ class QuizActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // shortcut: the quiz lives in memory with the feed; after process death we fall back to the list
-        all = Feed.current?.quiz?.takeIf { it.isNotEmpty() } ?: return finish()
+        val due = Store.due(this)
+        all = Feed.current?.quiz.orEmpty()
+        if (all.isEmpty() && due.isEmpty()) return finish()
         setContentView(R.layout.activity_quiz)
         scroll = findViewById(R.id.scroll)
         intro = findViewById(R.id.intro)
@@ -107,10 +111,17 @@ class QuizActivity : Activity() {
         // Coachings take turns, so every numbered set mixes them.
         val bySource = all.groupBy { it.source }.values.toList()
         val mixed = (0 until (bySource.maxOfOrNull { it.size } ?: 0)).flatMap { i -> bySource.mapNotNull { it.getOrNull(i) } }
-        sets = listOf(mixed) + if (mixed.size > SET) mixed.chunked(SET) else emptyList()
+        sets = (if (mixed.isEmpty()) emptyList() else listOf(mixed) + if (mixed.size > SET) mixed.chunked(SET) else emptyList()) +
+            if (due.isEmpty()) emptyList() else listOf(due)
+        reviseSet = if (due.isEmpty()) -1 else sets.lastIndex
         val track = findViewById<LinearLayout>(R.id.sets)
         setPills = sets.mapIndexed { i, s ->
-            newPill(track, if (i == 0) getString(R.string.set_all, s.size) else getString(R.string.set_one, i, s.size)) { pickSet(i) }
+            val label = when {
+                i == reviseSet -> getString(R.string.revise_set, s.size)
+                i == 0 -> getString(R.string.set_all, s.size)
+                else -> getString(R.string.set_one, i, s.size)
+            }
+            newPill(track, label) { pickSet(i) }
         }
 
         findViewById<View>(R.id.back).setOnClickListener { it.haptic(); finish() }
@@ -146,6 +157,11 @@ class QuizActivity : Activity() {
             }
         }
 
+        if (intent.getBooleanExtra(REVISE, false) && reviseSet >= 0) set = reviseSet
+        findViewById<View>(R.id.share).setOnClickListener {
+            it.haptic()
+            Share.score(this, fmt(score()).removePrefix("+"), quiz.size * 2, outcomes.count { o -> o == RIGHT }, quiz.size)
+        }
         val saved = savedInstanceState?.getIntArray("outcomes")
         if (saved == null) return showIntro()
         set = savedInstanceState.getInt("set")
@@ -275,6 +291,9 @@ class QuizActivity : Activity() {
             else -> WRONG
         }
         streak = if (outcomes[index] == RIGHT) streak + 1 else 0
+        // The revision deck learns from every answer: wrong or skipped comes back tomorrow, right moves it along.
+        if (set == reviseSet) Store.reviewed(this, q, outcomes[index] == RIGHT)
+        else if (outcomes[index] != RIGHT) Store.missed(this, q)
         options.performHapticFeedback(
             when (outcomes[index]) {
                 RIGHT -> HapticFeedbackConstants.CONFIRM

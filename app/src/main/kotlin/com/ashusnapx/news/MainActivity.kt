@@ -38,6 +38,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -53,6 +54,10 @@ class MainActivity : Activity() {
     private lateinit var refresh: View
     private lateinit var navItems: Map<String, View> // prelims, mains
     private lateinit var navQuiz: View
+    private lateinit var ring: Ring
+    private lateinit var gsScroll: View
+    private lateinit var gsChips: LinearLayout
+    private var paperFilter: String? = null // "GS1".."GS4", or null for all
     private lateinit var readRow: View
     private lateinit var readText: TextView
     private lateinit var readBar: View
@@ -93,11 +98,19 @@ class MainActivity : Activity() {
         navQuiz = navItem(R.id.navQuiz, R.drawable.ic_quiz, R.string.nav_quiz).apply {
             findViewById<ImageView>(R.id.navIcon).imageTintList = ColorStateList.valueOf(getColor(R.color.dock_ink))
             setOnClickListener {
-                if (Feed.current?.quiz.isNullOrEmpty()) return@setOnClickListener
+                if (Feed.current?.quiz.isNullOrEmpty() && Store.due(this@MainActivity).isEmpty()) return@setOnClickListener
                 it.haptic()
                 it.bounce()
                 startActivity(Intent(this@MainActivity, QuizActivity::class.java))
             }
+        }
+        ring = header.findViewById(R.id.ring)
+        ring.setOnClickListener { it.haptic(); startActivity(Intent(this, YouActivity::class.java)) }
+        gsScroll = header.findViewById(R.id.gsScroll)
+        gsChips = header.findViewById(R.id.gsChips)
+        navItem(R.id.navYou, R.drawable.ic_you, R.string.nav_you).apply {
+            findViewById<ImageView>(R.id.navIcon).imageTintList = ColorStateList.valueOf(getColor(R.color.dock_ink))
+            setOnClickListener { it.haptic(); it.bounce(); startActivity(Intent(this@MainActivity, YouActivity::class.java)) }
         }
         readRow = header.findViewById(R.id.readRow)
         readText = header.findViewById(R.id.readText)
@@ -308,10 +321,29 @@ class MainActivity : Activity() {
     }
 
     private fun filter() {
-        stories = Feed.current?.stories.orEmpty().filter { s -> s.any { it.kind == tab } }
+        val inTab = Feed.current?.stories.orEmpty().filter { s -> s.any { it.kind == tab } }
+        chips(inTab)
+        stories = inTab.filter { s -> paperFilter == null || s.any { paperFilter in it.gs } }
         caughtUp = false
         adapter.notifyDataSetChanged()
         progress()
+    }
+
+    /** "All · GS1 4 · GS2 7 · GS3 11": only papers this tab has; tapping one narrows the feed to it. */
+    private fun chips(inTab: List<Story>) {
+        val counts = listOf("GS1", "GS2", "GS3", "GS4").associateWith { p -> inTab.count { s -> s.any { p in it.gs } } }.filterValues { it > 0 }
+        if (paperFilter !in counts) paperFilter = null
+        gsScroll.visibility = if (counts.isEmpty()) View.GONE else View.VISIBLE
+        gsChips.removeAllViews()
+        (listOf<String?>(null) + counts.keys).forEach { p ->
+            val label = if (p == null) getString(R.string.gs_all) else getString(R.string.gs_chip, p, counts.getValue(p))
+            newPill(gsChips, label) {
+                if (paperFilter == p) return@newPill
+                paperFilter = p
+                filter()
+                list.setSelection(0)
+            }.pill(p == paperFilter, getColor(R.color.accent), animate = false)
+        }
     }
 
     private fun Story.read() = any { it.link in reads }
@@ -326,6 +358,9 @@ class MainActivity : Activity() {
         readBar.setBackgroundColor(getColor(if (all) R.color.good else R.color.accent))
         readBar.animate().scaleX(if (stories.isEmpty()) 0f else done / stories.size.toFloat()).setDuration(500)
         greetContext()
+        val today = Store.readOn(this, LocalDate.now())
+        ring.label = today.toString()
+        ring.set(today / Store.run { this@MainActivity.goal }.toFloat())
         if (all && !caughtUp) {
             readText.bounce()
             readText.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
@@ -351,8 +386,9 @@ class MainActivity : Activity() {
         val date = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(LocalDate.now(IST))
         val all = Feed.current?.stories.orEmpty()
         val unread = all.count { !it.read() }
-        greetSub.text = if (all.isEmpty()) date
-            else getString(R.string.greet_sub, date, if (unread == 0) getString(R.string.greet_done) else getString(R.string.unread, unread))
+        val streak = Store.streak(this).let { if (it > 0) "  ·  🔥 $it" else "" }
+        greetSub.text = if (all.isEmpty()) date + streak
+            else getString(R.string.greet_sub, date + streak, if (unread == 0) getString(R.string.greet_done) else getString(R.string.unread, unread))
     }
 
     /** Asked once, after the name, never again whatever the answer. */
@@ -453,6 +489,12 @@ class MainActivity : Activity() {
         h.image.visibility = if (lead.image == null) View.GONE else View.VISIBLE
         Img.load(lead.image, h.image)
         card.setOnClickListener { open(it, h.image, lead) }
+        card.setOnLongClickListener {
+            it.haptic()
+            it.bounce()
+            Toast.makeText(this, if (Store.toggleSave(this, lead)) R.string.saved_toast else R.string.unsaved_toast, Toast.LENGTH_SHORT).show()
+            true
+        }
     }
 
     /** "4 min · 3 sources · ✓ Read". No coaching names on the front page; the tab already says prelims or mains. */

@@ -45,7 +45,32 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
+        <com.ashusnapx.news.Ring
+            android:id="@+id/ring"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/nav_you" />
     </LinearLayout>
+
+    <!-- GS paper filter for the current tab. -->
+    <HorizontalScrollView
+        android:id="@+id/gsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/gsChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/track_strong"
+            android:orientation="horizontal"
+            android:padding="4dp" />
+    </HorizontalScrollView>
 
     <!-- Only when there is something to say: first load, offline, nothing published. -->
     <TextView

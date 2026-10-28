@@ -141,7 +141,9 @@ class Reminder : BroadcastReceiver() {
             }
             // One photo: a thumbnail while collapsed, the full picture when expanded, never both at once.
             slides.size == 1 -> builder.setStyle(
-                Notification.BigPictureStyle().bigPicture(slides[0].second).showBigPictureWhenCollapsed(true).setSummaryText(text)
+                Notification.BigPictureStyle().bigPicture(slides[0].second).setSummaryText(text).apply {
+                    if (Build.VERSION.SDK_INT >= 31) showBigPictureWhenCollapsed(true)
+                }
             )
             else -> builder.setStyle(Notification.BigTextStyle().bigText(text))
         }

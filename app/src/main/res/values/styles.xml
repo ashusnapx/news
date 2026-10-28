@@ -12,4 +12,29 @@
         <item name="android:textFontWeight">700</item>
         <item name="android:textSize">13sp</item>
     </style>
+    <style name="Label">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">30dp</item>
+        <item name="android:accessibilityHeading">true</item>
+        <item name="android:letterSpacing">0.14</item>
+        <item name="android:textColor">@color/ink2</item>
+        <item name="android:textFontWeight">700</item>
+        <item name="android:textSize">11.5sp</item>
+    </style>
+
+    <style name="Action">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_marginEnd">8dp</item>
+        <item name="android:background">@drawable/skip_btn</item>
+        <item name="android:drawablePadding">6dp</item>
+        <item name="android:drawableTint">@color/ink</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingHorizontal">14dp</item>
+        <item name="android:stateListAnimator">@animator/press</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:textFontWeight">700</item>
+        <item name="android:textSize">13sp</item>
+    </style>
 </resources>

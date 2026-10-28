@@ -2,4 +2,5 @@
 <resources>
     <item name="a11y_next" type="id" />
     <item name="a11y_prev" type="id" />
+    <item name="highlight_action" type="id" />
 </resources>
