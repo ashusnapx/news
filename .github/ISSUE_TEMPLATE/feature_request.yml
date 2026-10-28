@@ -1,0 +1,14 @@
+name: Idea or request
+description: A feature, a source to add, or something to make better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: How would it help your preparation?
