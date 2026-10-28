@@ -1,0 +1,35 @@
+name: scrape
+
+on:
+  schedule:
+    - cron: "30 0-17 * * *" # hourly, 06:00–23:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          cd scraper
+          python3 test_scrape.py
+          mkdir -p ../site
+          python3 scrape.py ../site/news.json
+      # Deployed as a Pages artifact, not committed: no repo history bloat from daily content.
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
