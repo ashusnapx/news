@@ -6,6 +6,8 @@ import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.transition.AutoTransition
+import android.transition.TransitionManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -15,7 +17,9 @@ import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
 import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.ViewGroup
@@ -54,7 +58,7 @@ class MainActivity : Activity() {
     private lateinit var greetSub: TextView
     private val profile by lazy { getSharedPreferences("profile", MODE_PRIVATE) }
     private val spinner by lazy {
-        ObjectAnimator.ofFloat(refresh, View.ROTATION, 0f, 360f).apply {
+        ObjectAnimator.ofFloat(refresh, View.ROTATION, 0f, 360f).apply { // on the pull badge
             duration = 800
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
@@ -76,20 +80,19 @@ class MainActivity : Activity() {
         val header = layoutInflater.inflate(R.layout.header_feed, list, false)
         state = header.findViewById(R.id.state)
         summary = header.findViewById(R.id.summary)
-        refresh = header.findViewById(R.id.refresh)
-        refresh.setOnClickListener { it.haptic(); load() }
+        refresh = findViewById(R.id.pull)
+        pullToRefresh()
         navItems = mapOf(
             "prelims" to navItem(R.id.navPrelims, R.drawable.ic_prelims, R.string.prelims),
             "mains" to navItem(R.id.navMains, R.drawable.ic_mains, R.string.mains),
         )
         navItems.forEach { (kind, item) -> item.setOnClickListener { it.haptic(); selectTab(kind) } }
         navQuiz = navItem(R.id.navQuiz, R.drawable.ic_quiz, R.string.nav_quiz).apply {
-            findViewById<View>(R.id.navPill).background = getDrawable(R.drawable.quiz_card) // the quiz always stands out
-            findViewById<ImageView>(R.id.navIcon).imageTintList = ColorStateList.valueOf(Color.WHITE)
+            findViewById<ImageView>(R.id.navIcon).imageTintList = ColorStateList.valueOf(getColor(R.color.dock_ink))
             setOnClickListener {
                 if (Feed.current?.quiz.isNullOrEmpty()) return@setOnClickListener
                 it.haptic()
-                findViewById<View>(R.id.navPill).bounce()
+                it.bounce()
                 startActivity(Intent(this@MainActivity, QuizActivity::class.java))
             }
         }
@@ -123,10 +126,12 @@ class MainActivity : Activity() {
             list.setPadding(i.left + side, i.top + 8.dp, i.right + side, i.bottom + 112.dp) // room above the bottom bar
             findViewById<View>(R.id.nav).apply {
                 // Absolute margins: start/end set after attach are not re-resolved, so the bar went edge to edge.
-                (layoutParams as ViewGroup.MarginLayoutParams).setMargins(i.left + side, 0, i.right + side, i.bottom + 12.dp)
+                (layoutParams as ViewGroup.MarginLayoutParams).setMargins(0, 0, 0, i.bottom + 14.dp)
                 requestLayout()
             }
             findViewById<View>(R.id.scrim).apply { layoutParams.height = i.top + 28.dp; requestLayout() }
+            (refresh.layoutParams as ViewGroup.MarginLayoutParams).topMargin = i.top + 8.dp
+            refresh.requestLayout()
         }
 
         Feed.current?.let(::show) // instant redraw after rotate/fold
@@ -152,6 +157,49 @@ class MainActivity : Activity() {
         super.onStop()
     }
 
+    /**
+     * Pull down at the top of the list: the badge follows the finger and turns; past [threshold] a tick, and
+     * letting go refreshes. Moves are taken from the list only while pulling, so ordinary scrolling is untouched.
+     */
+    private fun pullToRefresh() {
+        val threshold = 88.dp.toFloat()
+        val slop = ViewConfiguration.get(this).scaledTouchSlop
+        var start = -1f
+        var pulling = false
+        var armed = false
+        fun atTop() = list.firstVisiblePosition == 0 && (list.getChildAt(0)?.top ?: 0) >= list.paddingTop
+        list.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    start = if (atTop() && !loading) e.rawY else -1f
+                    pulling = false
+                    armed = false
+                }
+                MotionEvent.ACTION_MOVE -> if (start >= 0) {
+                    val d = e.rawY - start
+                    if (!pulling && d > slop && atTop()) pulling = true
+                    if (pulling) {
+                        if (d <= 0) { pulling = false; start = -1f; refresh.animate().translationY(-64.dp.toFloat()).alpha(0f); return@setOnTouchListener false }
+                        val p = (d * 0.55f).coerceAtMost(threshold * 1.3f) // resistance, like every other app
+                        refresh.translationY = p - 52.dp
+                        refresh.alpha = (p / threshold).coerceAtMost(1f)
+                        refresh.rotation = p * 2.5f
+                        if (!armed && p >= threshold) { armed = true; refresh.haptic(); refresh.bounce() }
+                        if (armed && p < threshold) armed = false
+                        return@setOnTouchListener true
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (pulling) {
+                    pulling = false
+                    if (armed) load()
+                    else refresh.animate().translationY(-64.dp.toFloat()).alpha(0f).setDuration(200)
+                    return@setOnTouchListener true
+                }
+            }
+            false
+        }
+    }
+
     private fun load() {
         if (loading) return
         loading = true
@@ -166,7 +214,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 loading = false
                 spinner.cancel()
-                refresh.animate().rotation(360f).setDuration(250).withEndAction { refresh.rotation = 0f }
+                refresh.animate().translationY(-64.dp.toFloat()).alpha(0f).rotation(0f).setDuration(260) // tuck the badge away
                 result.onSuccess(::show).onFailure {
                     if (shown != null) return@onFailure
                     state.setText(R.string.state_offline)
@@ -207,7 +255,7 @@ class MainActivity : Activity() {
         tab = kind
         navItems.forEach { (k, item) -> paintNav(item, k == kind, animate, if (k == "mains") R.drawable.ic_mains_on else R.drawable.ic_prelims_on) }
         if (!animate) return
-        navItems.getValue(kind).findViewById<View>(R.id.navPill).bounce()
+        navItems.getValue(kind).bounce()
         list.setSelection(0) // a new tab starts at the top
         filter()
         // Only the rows below the header rise in; the header, tabs and quiz card stay put.
@@ -225,28 +273,31 @@ class MainActivity : Activity() {
     private fun navItem(id: Int, icon: Int, label: Int): View = findViewById<View>(id).apply {
         findViewById<ImageView>(R.id.navIcon).setImageResource(icon)
         findViewById<TextView>(R.id.navLabel).setText(label)
-        findViewById<View>(R.id.navPill).background = GradientDrawable().apply { cornerRadius = 16.dp.toFloat() }
+        contentDescription = getString(label)
+        background = GradientDrawable().apply { cornerRadius = 100.dp.toFloat(); setColor(Color.TRANSPARENT) }
     }
 
-    /** Selected: the pill fills with a soft accent and the icon and label darken. Colours morph, never snap. */
+    /** Selected: the item grows into an accent pill with its label; the others shrink back to an icon. */
     private fun paintNav(item: View, on: Boolean, animate: Boolean, filledIcon: Int) {
+        if (animate) TransitionManager.beginDelayedTransition(findViewById(R.id.nav), AutoTransition().setDuration(220))
         val accent = getColor(R.color.accent)
-        val pill = item.findViewById<View>(R.id.navPill).background as GradientDrawable
-        val to = accent and 0xFFFFFF or (if (on) 0x33000000 else 0)
+        val pill = item.background as GradientDrawable
+        val to = if (on) accent else accent and 0xFFFFFF
         if (animate) {
             ValueAnimator.ofArgb(pill.color?.defaultColor ?: to, to).apply {
-                duration = 240
+                duration = 220
                 addUpdateListener { pill.setColor(it.animatedValue as Int) }
                 start()
             }
         } else pill.setColor(to)
+        val tint = getColor(if (on) R.color.on_src else R.color.dock_ink2)
         item.findViewById<ImageView>(R.id.navIcon).apply {
-            if (on) setImageResource(filledIcon) else setImageResource(if (filledIcon == R.drawable.ic_mains_on) R.drawable.ic_mains else R.drawable.ic_prelims)
-            imageTintList = ColorStateList.valueOf(getColor(if (on) R.color.accent else R.color.ink2))
+            setImageResource(if (on) filledIcon else if (filledIcon == R.drawable.ic_mains_on) R.drawable.ic_mains else R.drawable.ic_prelims)
+            imageTintList = ColorStateList.valueOf(tint)
         }
         item.findViewById<TextView>(R.id.navLabel).apply {
-            setTextColor(getColor(if (on) R.color.ink else R.color.ink2))
-            typeface = Typeface.create(typeface, if (on) 700 else 500, false)
+            setTextColor(tint)
+            visibility = if (on) View.VISIBLE else View.GONE
         }
         item.isSelected = on
     }

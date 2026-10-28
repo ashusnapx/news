@@ -45,13 +45,6 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/refresh"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/refresh"
-            android:src="@drawable/ic_refresh" />
     </LinearLayout>
 
     <!-- Only when there is something to say: first load, offline, nothing published. -->

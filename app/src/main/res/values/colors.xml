@@ -10,6 +10,10 @@
     <color name="paper_ink2">#6F6352</color>
     <color name="paper_line">#E2D5B8</color>
     <color name="paper_raised">#FAF4E4</color>
+    <color name="dock">#17161D</color>
+    <color name="dock_line">#2C2B34</color>
+    <color name="dock_ink">#F2F1F5</color>
+    <color name="dock_ink2">#A3A1AE</color>
     <color name="surface">#FFFFFF</color>
     <color name="ink">#15141A</color>
     <color name="ink2">#6A6875</color>

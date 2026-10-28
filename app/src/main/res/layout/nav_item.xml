@@ -1,50 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- A dock item: icon only until selected, then a pill with its label. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="0dp"
-    android:layout_height="wrap_content"
-    android:layout_weight="1"
-    android:background="?android:attr/selectableItemBackgroundBorderless"
-    android:clipChildren="false"
+    android:layout_width="wrap_content"
+    android:layout_height="48dp"
     android:gravity="center"
-    android:orientation="vertical"
-    android:paddingVertical="8dp">
+    android:minWidth="56dp"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp">
 
-    <FrameLayout
-        android:id="@+id/navPill"
-        android:clipChildren="false"
-        android:layout_width="60dp"
-        android:layout_height="32dp">
-
-        <ImageView
-            android:id="@+id/navIcon"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:layout_gravity="center"
-            android:importantForAccessibility="no" />
-
-        <TextView
-            android:id="@+id/navBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="16dp"
-            android:layout_gravity="top|end"
-            android:layout_marginTop="-4dp"
-            android:layout_marginEnd="-6dp"
-            android:background="@drawable/nav_badge"
-            android:gravity="center"
-            android:minWidth="16dp"
-            android:paddingHorizontal="4dp"
-            android:textColor="@color/accent"
-            android:textFontWeight="700"
-            android:textSize="11sp"
-            android:visibility="gone" />
-    </FrameLayout>
+    <ImageView
+        android:id="@+id/navIcon"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:importantForAccessibility="no" />
 
     <TextView
         android:id="@+id/navLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textColor="@color/ink2"
-        android:textFontWeight="500"
-        android:textSize="12sp" />
+        android:layout_marginStart="8dp"
+        android:importantForAccessibility="no"
+        android:singleLine="true"
+        android:textFontWeight="700"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/navBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="20dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/nav_badge"
+        android:gravity="center"
+        android:importantForAccessibility="no"
+        android:minWidth="20dp"
+        android:paddingHorizontal="6dp"
+        android:textColor="@color/on_src"
+        android:textFontWeight="700"
+        android:textSize="11sp"
+        android:visibility="gone" />
 </LinearLayout>

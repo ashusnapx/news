@@ -20,23 +20,42 @@
         android:layout_height="0dp"
         android:background="@drawable/top_scrim" />
 
-    <!-- Floating bottom bar: Prelims and Mains switch the feed, Quiz opens today's quiz. -->
+    <!-- Pull-to-refresh badge: hides above the screen until the list is pulled down from the top. -->
+    <ImageView
+        android:id="@+id/pull"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|center_horizontal"
+        android:alpha="0"
+        android:background="@drawable/pull_badge"
+        android:contentDescription="@string/refresh"
+        android:elevation="6dp"
+        android:padding="11dp"
+        android:src="@drawable/ic_refresh"
+        android:translationY="-64dp" />
+
+    <!-- Floating dock: Prelims and Mains switch the feed, Quiz opens today's quiz. -->
     <LinearLayout
         android:id="@+id/nav"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:layout_gravity="bottom|center_horizontal"
         android:background="@drawable/nav_bar"
-        android:baselineAligned="false"
-        android:clipChildren="false"
-        android:elevation="8dp"
+        android:elevation="12dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="2dp">
+        android:padding="6dp">
 
-        <include android:id="@+id/navPrelims" layout="@layout/nav_item" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
-        <include android:id="@+id/navMains" layout="@layout/nav_item" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
-        <include android:id="@+id/navQuiz" layout="@layout/nav_item" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+        <include android:id="@+id/navPrelims" layout="@layout/nav_item" />
+        <include android:id="@+id/navMains" layout="@layout/nav_item" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:layout_marginHorizontal="6dp"
+            android:background="@color/dock_line" />
+
+        <include android:id="@+id/navQuiz" layout="@layout/nav_item" />
     </LinearLayout>
 
     <include layout="@layout/welcome" />
