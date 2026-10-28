@@ -496,40 +496,73 @@ blockquote{margin:1.2em 0;padding:2px 0 2px 16px;border-left:3px solid $src;font
     private fun highlighter(base: ActionMode.Callback, item: Item) = object : ActionMode.Callback2() {
         override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
             val ok = base.onCreateActionMode(mode, menu)
-            menu.add(Menu.NONE, R.id.highlight_action, 0, R.string.highlight)
+            addHighlight(menu)
+            showPill(mode, base, item)
             return ok
         }
 
-        override fun onPrepareActionMode(mode: ActionMode, menu: Menu) = base.onPrepareActionMode(mode, menu)
-
-        override fun onActionItemClicked(mode: ActionMode, menuItem: MenuItem): Boolean {
-            if (menuItem.itemId != R.id.highlight_action) return base.onActionItemClicked(mode, menuItem)
-            val copy = (0 until mode.menu.size()).map { mode.menu.getItem(it) }.firstOrNull {
-                it.itemId == android.R.id.copy || it.title?.toString().equals(getString(android.R.string.copy), ignoreCase = true)
-            }
-            if (copy == null) {
-                Toast.makeText(this@ArticleActivity, R.string.highlight_failed, Toast.LENGTH_SHORT).show()
-                return true
-            }
-            base.onActionItemClicked(mode, copy)
-            body.postDelayed({
-                val text = getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text?.toString()?.trim()
-                if (text.isNullOrEmpty()) {
-                    Toast.makeText(this@ArticleActivity, R.string.highlight_failed, Toast.LENGTH_SHORT).show()
-                } else {
-                    Store.highlight(this@ArticleActivity, text, item)
-                    body.haptic()
-                    Toast.makeText(this@ArticleActivity, R.string.highlighted, Toast.LENGTH_SHORT).show()
-                }
-                mode.finish()
-            }, 150)
+        // The WebView clears and rebuilds its selection menu every time it prepares it, so "Highlight" is added
+        // back after each rebuild. It still lands in the overflow, hence the pill as well.
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+            base.onPrepareActionMode(mode, menu)
+            addHighlight(menu)
             return true
         }
 
-        override fun onDestroyActionMode(mode: ActionMode) = base.onDestroyActionMode(mode)
+        private fun addHighlight(menu: Menu) {
+            if (menu.findItem(R.id.highlight_action) == null) menu.add(Menu.NONE, R.id.highlight_action, 0, R.string.highlight)
+        }
+
+        override fun onActionItemClicked(mode: ActionMode, menuItem: MenuItem): Boolean {
+            if (menuItem.itemId != R.id.highlight_action) return base.onActionItemClicked(mode, menuItem)
+            highlightSelection(mode, base, item)
+            return true
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            hidePill()
+            base.onDestroyActionMode(mode)
+        }
 
         override fun onGetContentRect(mode: ActionMode, view: View, outRect: Rect) =
             if (base is ActionMode.Callback2) base.onGetContentRect(mode, view, outRect) else super.onGetContentRect(mode, view, outRect)
+    }
+
+    private fun showPill(mode: ActionMode, base: ActionMode.Callback, item: Item) {
+        val pill = findViewById<View>(R.id.highlightPill)
+        pill.setOnClickListener { it.haptic(); highlightSelection(mode, base, item) }
+        if (pill.visibility == View.VISIBLE) return
+        pill.visibility = View.VISIBLE
+        pill.translationY = 120.dp.toFloat()
+        pill.animate().translationY(-28.dp.toFloat()).setDuration(260).setInterpolator(DecelerateInterpolator())
+    }
+
+    private fun hidePill() {
+        val pill = findViewById<View>(R.id.highlightPill)
+        pill.animate().translationY(120.dp.toFloat()).setDuration(200).withEndAction { pill.visibility = View.GONE }
+    }
+
+    /** With scripts off the selection is read the one way left: the menu's own Copy, then the clip this app wrote. */
+    private fun highlightSelection(mode: ActionMode, base: ActionMode.Callback, item: Item) {
+        val copy = (0 until mode.menu.size()).map { mode.menu.getItem(it) }.firstOrNull {
+            it.itemId == android.R.id.copy || it.title?.toString().equals(getString(android.R.string.copy), ignoreCase = true)
+        }
+        if (copy == null) {
+            Toast.makeText(this, R.string.highlight_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        base.onActionItemClicked(mode, copy)
+        body.postDelayed({
+            val text = getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text?.toString()?.trim()
+            if (text.isNullOrEmpty()) {
+                Toast.makeText(this, R.string.highlight_failed, Toast.LENGTH_SHORT).show()
+            } else {
+                Store.highlight(this, text, item)
+                body.haptic()
+                Toast.makeText(this, R.string.highlighted, Toast.LENGTH_SHORT).show()
+            }
+            mode.finish()
+        }, 150)
     }
 
     /** Saved highlights shown in place: first verbatim occurrence of each, where it is not split by markup. */

@@ -179,6 +179,23 @@
         android:scaleX="0"
         android:transformPivotX="0dp" />
 
+    <!-- Shown while text is selected: the floating menu tucks Highlight behind its overflow. -->
+    <TextView
+        android:id="@+id/highlightPill"
+        android:layout_width="wrap_content"
+        android:layout_height="52dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:background="@drawable/quiz_card"
+        android:elevation="10dp"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:gravity="center"
+        android:paddingHorizontal="28dp"
+        android:text="@string/highlight_pill"
+        android:textColor="#FFFFFF"
+        android:textFontWeight="700"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
     <ImageButton
         android:id="@+id/paperBtn"
         android:layout_width="48dp"

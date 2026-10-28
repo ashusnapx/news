@@ -43,7 +43,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val KINDS = listOf("prelims" to R.string.prelims, "mains" to R.string.mains)
 private const val TOP = 5 // stories in the carousel
 private const val AVATAR = "https://avatars.githubusercontent.com/u/75922918?v=4&s=192"
 
@@ -74,7 +73,7 @@ class MainActivity : Activity() {
     }
 
     private var cols = 1
-    private var tab = KINDS[0].first
+    private var tab = "prelims" // or "mains"
     private var stories: List<Story> = emptyList()
     private var reads: Set<String> = emptySet()
     private var caughtUp = false
@@ -329,20 +328,27 @@ class MainActivity : Activity() {
         progress()
     }
 
-    /** "All · GS1 4 · GS2 7 · GS3 11": only papers this tab has; tapping one narrows the feed to it. */
+    /**
+     * "All · GS1 · GS2 · GS3 · GS4": always all four, so a missing paper reads as "none today", not as a bug.
+     * An empty paper is dimmed and says so when tapped. No counts: "GS1 4" read as "GS14".
+     */
     private fun chips(inTab: List<Story>) {
-        val counts = listOf("GS1", "GS2", "GS3", "GS4").associateWith { p -> inTab.count { s -> s.any { p in it.gs } } }.filterValues { it > 0 }
-        if (paperFilter !in counts) paperFilter = null
-        gsScroll.visibility = if (counts.isEmpty()) View.GONE else View.VISIBLE
+        val counts = listOf("GS1", "GS2", "GS3", "GS4").associateWith { p -> inTab.count { s -> s.any { p in it.gs } } }
+        if (paperFilter != null && counts[paperFilter] == 0) paperFilter = null
+        gsScroll.visibility = if (inTab.isEmpty()) View.GONE else View.VISIBLE
         gsChips.removeAllViews()
         (listOf<String?>(null) + counts.keys).forEach { p ->
-            val label = if (p == null) getString(R.string.gs_all) else getString(R.string.gs_chip, p, counts.getValue(p))
-            newPill(gsChips, label) {
+            val empty = p != null && counts[p] == 0
+            newPill(gsChips, p ?: getString(R.string.gs_all)) {
+                if (empty) return@newPill Toast.makeText(this, getString(R.string.gs_none, p), Toast.LENGTH_SHORT).show()
                 if (paperFilter == p) return@newPill
                 paperFilter = p
                 filter()
                 list.setSelection(0)
-            }.pill(p == paperFilter, getColor(R.color.accent), animate = false)
+            }.apply {
+                pill(p == paperFilter, getColor(R.color.accent), animate = false)
+                alpha = if (empty) 0.4f else 1f
+            }
         }
     }
 

@@ -29,7 +29,6 @@ fun sourceColor(source: String) = when (source) {
     "Drishti IAS" -> R.color.src_drishti
     "Insights IAS" -> R.color.src_insights
     "ForumIAS" -> R.color.src_forum
-    "Rau's IAS" -> R.color.src_rau
     else -> R.color.ink2
 }
 

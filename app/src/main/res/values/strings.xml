@@ -88,6 +88,7 @@
     <string name="highlights_empty">Select text in an article and tap Highlight. Long-press a highlight here to remove it.</string>
     <string name="highlight">Highlight</string>
     <string name="highlighted">Highlighted</string>
+    <string name="highlight_pill">✎  Highlight</string>
     <string name="highlight_failed">Couldn’t read the selection</string>
     <string name="saved_toast">Saved for revision</string>
     <string name="unsaved_toast">Removed from saved</string>
@@ -104,7 +105,7 @@
     <string name="share_result">Share my score</string>
     <string name="revise_set">Revise  ·  %1$d</string>
     <string name="gs_all">All</string>
-    <string name="gs_chip">%1$s  %2$d</string>
+    <string name="gs_none">No %1$s stories in the last 24 hours</string>
     <string name="made_by">Made by Ashutosh Kumar</string>
     <string name="author">Ashutosh Kumar</string>
     <string name="author_line">Generative AI Engineer  ·  Bengaluru</string>
