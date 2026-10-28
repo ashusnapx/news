@@ -2,6 +2,7 @@
 <resources>
     <style name="Theme.News" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/bg</item>
+        <item name="android:fontFamily">@font/jakarta</item>
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:colorEdgeEffect">@color/accent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

@@ -55,12 +55,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:accessibilityHeading="true"
-                    android:fontFamily="sans-serif"
-                    android:letterSpacing="-0.01"
-                    android:lineSpacingExtra="3dp"
+                    android:fontFamily="@font/instrument_serif"
+                    android:lineSpacingExtra="2dp"
                     android:textColor="@color/ink"
-                    android:textSize="26sp"
-                    android:textStyle="bold" />
+                    android:textSize="34sp" />
 
                 <TextView
                     android:id="@+id/meta"
@@ -71,6 +69,7 @@
                     android:minHeight="48dp"
                     android:gravity="center_vertical"
                     android:textColor="@color/ink2"
+                    android:textFontWeight="500"
                     android:textSize="13sp" />
             </LinearLayout>
 
@@ -88,15 +87,23 @@
         android:alpha="0"
         android:background="@color/surface"
         android:ellipsize="end"
-        android:fontFamily="sans-serif-medium"
         android:gravity="center_vertical"
+        android:textFontWeight="700"
         android:importantForAccessibility="no"
         android:minHeight="56dp"
         android:paddingStart="72dp"
         android:paddingEnd="20dp"
         android:singleLine="true"
         android:textColor="@color/ink"
-        android:textSize="16sp" />
+        android:textSize="15sp" />
+
+    <!-- Reading progress, in the selected coaching's colour. -->
+    <View
+        android:id="@+id/progress"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:scaleX="0"
+        android:transformPivotX="0dp" />
 
     <ImageButton
         android:id="@+id/back"

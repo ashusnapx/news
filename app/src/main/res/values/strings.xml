@@ -7,7 +7,14 @@
     <string name="back">Back</string>
     <string name="loading">Fetching today’s stories…</string>
     <string name="offline">Can’t reach the server. Tap refresh to try again.</string>
-    <string name="empty">Nothing published yet today. Coachings usually post through the day.</string>
+    <string name="empty">Nothing published in the last 24 hours.</string>
+    <string name="state_empty">All quiet.</string>
+    <string name="state_offline">You’re offline.</string>
+    <string name="top_story">TOP STORY</string>
+    <string name="covered_by">COVERED BY %1$d COACHINGS</string>
+    <string name="more">MORE STORIES</string>
+    <string name="sources_min">%1$s  ·  %2$d min</string>
+    <string name="dot_min">  ·  %1$d min</string>
     <string name="summary">%1$s · %2$s · updated %3$s</string>
     <plurals name="stories">
         <item quantity="one">%d story</item>
@@ -17,6 +24,5 @@
         <item quantity="one">%d coaching</item>
         <item quantity="other">%d coachings</item>
     </plurals>
-    <string name="min_read">%1$d min read</string>
-    <string name="meta">%1$s · %2$d min read · Open original ↗</string>
+    <string name="meta">  ·  %1$d min read  ·  Original ↗</string>
 </resources>

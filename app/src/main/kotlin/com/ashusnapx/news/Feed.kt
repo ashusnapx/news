@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.net.URL
-import java.time.LocalDate
+import java.time.OffsetDateTime
 
 class Item(
     val source: String,
@@ -30,7 +30,7 @@ class Feed(val updated: String, val stories: List<Story>) {
         @Volatile
         var current: Feed? = null
 
-        /** Today's (IST) stories. Revalidates with the server every time; falls back to the HTTP cache offline. */
+        /** The last 24 hours of stories. Revalidates with the server every time; falls back to the HTTP cache offline. */
         fun fetch(cacheDir: File): Feed {
             synchronized(this) {
                 if (HttpResponseCache.getInstalled() == null) HttpResponseCache.install(File(cacheDir, "http"), 64L shl 20)
@@ -42,7 +42,10 @@ class Feed(val updated: String, val stories: List<Story>) {
                     get("only-if-cached, max-stale=86400")
                 }
             )
-            if (o.getString("date") != LocalDate.now(IST).toString()) return Feed(o.getString("updated"), emptyList())
+            // A stalled scraper must show nothing rather than yesterday's news.
+            if (OffsetDateTime.parse(o.getString("updated")).isBefore(OffsetDateTime.now().minusHours(6))) {
+                return Feed(o.getString("updated"), emptyList())
+            }
             val arr = o.getJSONArray("stories")
             return Feed(o.getString("updated"), List(arr.length()) { i ->
                 val s = arr.getJSONArray(i)

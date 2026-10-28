@@ -4,9 +4,9 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingStart="4dp"
-    android:paddingEnd="0dp"
     android:paddingTop="4dp"
-    android:paddingBottom="10dp">
+    android:paddingEnd="0dp"
+    android:paddingBottom="18dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,16 +19,16 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="0.12"
+            android:letterSpacing="0.14"
             android:textColor="@color/accent"
-            android:textSize="12sp" />
+            android:textFontWeight="700"
+            android:textSize="11.5sp" />
 
         <ImageButton
             android:id="@+id/refresh"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/round_btn"
             android:contentDescription="@string/refresh"
             android:src="@drawable/ic_refresh" />
     </LinearLayout>
@@ -36,20 +36,31 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
         android:accessibilityHeading="true"
-        android:fontFamily="sans-serif"
-        android:letterSpacing="-0.02"
+        android:fontFamily="@font/instrument_serif"
+        android:includeFontPadding="false"
         android:text="@string/brief"
         android:textColor="@color/ink"
-        android:textSize="34sp"
-        android:textStyle="bold" />
+        android:textSize="52sp" />
+
+    <TextView
+        android:id="@+id/state"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="36dp"
+        android:fontFamily="@font/instrument_serif"
+        android:textColor="@color/ink"
+        android:textSize="30sp"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/summary"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:accessibilityLiveRegion="polite"
+        android:lineSpacingExtra="2dp"
         android:textColor="@color/ink2"
         android:textSize="14sp" />
 </LinearLayout>

@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#F5F6FA</color>
+    <color name="bg">#F6F5F2</color>
     <color name="surface">#FFFFFF</color>
-    <color name="ink">#111318</color>
-    <color name="ink2">#5D6271</color>
-    <color name="line">#E7E9F0</color>
-    <color name="accent">#4F46E5</color>
+    <color name="ink">#15141A</color>
+    <color name="ink2">#6A6875</color>
+    <color name="line">#E9E6E0</color>
+    <color name="accent">#5B4CF5</color>
     <color name="chip">#D9FFFFFF</color>
     <color name="on_src">#FFFFFF</color>
 
-    <!-- One hue per coaching; darker shades keep white pill text at WCAG AA. -->
+    <!-- One hue per coaching; darker shades keep white text on them at WCAG AA. -->
     <color name="src_vajiram">#4F46E5</color>
     <color name="src_drishti">#C2410C</color>
     <color name="src_insights">#0369A1</color>
     <color name="src_forum">#047857</color>
     <color name="src_rau">#7E22CE</color>
 
-    <color name="icon_bg">#4F46E5</color>
+    <color name="icon_bg">#5B4CF5</color>
 </resources>

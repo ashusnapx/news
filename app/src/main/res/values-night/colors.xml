@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#0D0E12</color>
-    <color name="surface">#17191F</color>
-    <color name="ink">#ECEDF2</color>
-    <color name="ink2">#9BA1B0</color>
-    <color name="line">#262932</color>
-    <color name="accent">#9B95FF</color>
-    <color name="chip">#D917191F</color>
-    <color name="on_src">#0D0E12</color>
+    <color name="bg">#0E0E11</color>
+    <color name="surface">#18181D</color>
+    <color name="ink">#F2F1F5</color>
+    <color name="ink2">#A09EAB</color>
+    <color name="line">#2A2A31</color>
+    <color name="accent">#A59BFF</color>
+    <color name="chip">#D918181D</color>
+    <color name="on_src">#0E0E11</color>
 
-    <color name="src_vajiram">#9B95FF</color>
+    <color name="src_vajiram">#A5A1FF</color>
     <color name="src_drishti">#FB923C</color>
     <color name="src_insights">#38BDF8</color>
     <color name="src_forum">#34D399</color>

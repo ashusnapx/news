@@ -1,8 +1,11 @@
 package com.ashusnapx.news
 
 import android.app.Activity
+import android.content.Context
 import android.content.res.Resources
+import android.graphics.Color
 import android.graphics.Insets
+import android.graphics.drawable.GradientDrawable
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowInsets
@@ -23,6 +26,13 @@ fun sourceColor(source: String) = when (source) {
     "ForumIAS" -> R.color.src_forum
     "Rau's IAS" -> R.color.src_rau
     else -> R.color.ink2
+}
+
+/** Diagonal gradient in a coaching's hue: the stand-in for stories that come without a photo. */
+fun Context.sourceGradient(source: String): GradientDrawable {
+    val c = getColor(sourceColor(source))
+    val deep = Color.rgb(Color.red(c) * 3 / 5, Color.green(c) * 3 / 5, Color.blue(c) * 3 / 5)
+    return GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(c, deep))
 }
 
 fun View.haptic() = performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
