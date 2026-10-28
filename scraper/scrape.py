@@ -37,12 +37,13 @@ def fetch(url):
 JUNK = re.compile(r"<(script|style|iframe|form|noscript|svg)\b.*?</\1>|<!--.*?-->", re.S | re.I)
 
 
-def item(source, title, link, body, image=None):
+def item(source, kind, title, link, body, image=None):
     body = JUNK.sub("", body).replace('src="http://', 'src="https://').strip()
     text = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", body))).strip()
     img = re.search(r'<img[^>]+src="([^"]+)"', body)
     return {
         "source": source,
+        "kind": kind,
         "title": html.unescape(re.sub(r"<[^>]+>", "", title)).strip(),
         "link": link,
         "image": image or (img and urljoin(link, img.group(1))) or "",
@@ -52,15 +53,20 @@ def item(source, title, link, body, image=None):
     }
 
 
-def wp(source, base, categories):
-    """WordPress REST API: structured, so it survives site redesigns."""
+def published(post):
+    return datetime.fromisoformat(post["date_gmt"] + "+00:00")
+
+
+def wp(source, base, kinds, default="prelims"):
+    """WordPress REST API: structured, so it survives site redesigns. [kinds] maps category id -> prelims/mains."""
     url = (f"{base}/wp-json/wp/v2/posts?per_page=100&_embed=wp:featuredmedia"
-           f"&after={SINCE.date() - timedelta(days=1)}T00:00:00" + (f"&categories={categories}" if categories else ""))
+           f"&after={SINCE.date() - timedelta(days=1)}T00:00:00" + (f"&categories={','.join(map(str, kinds))}" if kinds else ""))
     for p in json.loads(get(url)):
-        if datetime.fromisoformat(p["date_gmt"] + "+00:00") < SINCE:
+        if published(p) < SINCE:
             continue
+        kind = next((kinds[c] for c in p["categories"] if c in kinds), default)
         media = (p.get("_embedded", {}).get("wp:featuredmedia") or [{}])[0]
-        yield item(source, p["title"]["rendered"], p["link"], p["content"]["rendered"], media.get("source_url"))
+        yield item(source, kind, p["title"]["rendered"], p["link"], p["content"]["rendered"], media.get("source_url"))
 
 
 def drishti(source):
@@ -77,17 +83,73 @@ def drishti(source):
         if head:
             body = block.split("<!-- #end tags area -->")[-1].split('<div class="banner-static">')[0]
             body = re.sub(r'<div class="social-shares">.*?</div>\s*</div>', "", body, count=1, flags=re.S)
-            yield item(source, head.group(2), head.group(1), body)
+            yield item(source, "mains", head.group(2), head.group(1), body)  # analysis pieces, written for mains
 
 
 # name, fetcher, args. WordPress category ids pick the per-topic news posts (not quizzes or daily mega-posts).
 SOURCES = [
-    ("Vajiram & Ravi", wp, "https://vajiramandravi.com/current-affairs", "1,18"),
+    ("Vajiram & Ravi", wp, "https://vajiramandravi.com/current-affairs", {1: "prelims", 18: "mains"}),
     ("Drishti IAS", drishti),
-    ("Insights IAS", wp, "https://www.insightsonindia.com", "238466806,238466805"),
-    ("ForumIAS", wp, "https://forumias.com/blog", "1566,1230"),
-    ("Rau's IAS", wp, "https://compass.rauias.com", ""),  # silent since 10 Jun 2026; costs one request
+    ("Insights IAS", wp, "https://www.insightsonindia.com", {238466806: "prelims", 238466805: "mains"}),
+    ("ForumIAS", wp, "https://forumias.com/blog", {1566: "prelims", 1230: "mains"}),
+    ("Rau's IAS", wp, "https://compass.rauias.com", {}),  # silent since 10 Jun 2026; costs one request
 ]
+
+
+def proquiz(source, base, category):
+    """WP Pro Quiz posts: questions and options in the HTML, correct answers in the plugin's init JSON."""
+    for p in json.loads(get(f"{base}/wp-json/wp/v2/posts?per_page=3&categories={category}&_fields=date_gmt,link,content")):
+        if published(p) >= SINCE:
+            yield from questions(source, p["link"], p["content"]["rendered"])
+
+
+def questions(source, link, page):
+    correct = {qid: flags.split(",").index("1") for qid, flags in
+               re.findall(r'"(\d+)":\{[^{}]*?"correct":\[([01,]+)\]', page.replace(" ", ""))}
+    for block in page.split('class="wpProQuiz_listItem"')[1:]:
+        qid = re.search(r'data-question_id="(\d+)"', block)
+        text = re.search(r'class="wpProQuiz_question_text">(.*?)</div>', block, re.S)
+        why = re.search(r'class="wpProQuiz_correct">(.*?)</div>\s*<div[^>]*class="wpProQuiz_incorrect"', block, re.S)
+        options = [re.sub(r"^[a-dA-D][.)]\s*", "", plain(o))
+                   for o in re.findall(r'<li class="wpProQuiz_questionListItem"[^>]*>(.*?)</li>', block, re.S)]
+        if not (qid and text and qid.group(1) in correct and len(options) > 1):
+            continue
+        why = why.group(1) if why else ""
+        why = re.sub(r'<span class="wpProQuiz_respone_span">.*?</span>\s*(<br\s*/?>)?|<p>\s*<strong>\s*Answer:.*?</p>|<img[^>]*>',
+                     "", why, flags=re.S)
+        yield {"source": source, "link": link, "q": numbered(text.group(1).strip()), "options": options,
+               "answer": correct[qid.group(1)], "why": JUNK.sub("", why).strip()}
+
+
+def plain(fragment):
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", fragment))).strip()
+
+
+def numbered(fragment):
+    """The app renders with Html.fromHtml, which bullets <ol> items; UPSC statements need their numbers."""
+    def ol(m):
+        return "".join(f"<p>{i}. {li}</p>" for i, li in enumerate(re.findall(r"<li[^>]*>(.*?)</li>", m.group(1), re.S), 1))
+    return re.sub(r"<ol[^>]*>(.*?)</ol>", ol, fragment, flags=re.S)
+
+
+QUIZZES = [
+    ("Vajiram & Ravi", "https://vajiramandravi.com/current-affairs", 139),
+    ("IASbaba", "https://iasbaba.com", 1066),
+]
+
+QUIZ_STOP = set("""consider following statement statements regarding recently seen news which given above correct
+incorrect select answer using code below with reference pair pairs matched how many only none all both neither
+one two three four""".split())
+
+
+def dedupe(qs):
+    """The same question from several coachings: keep the copy with the fullest explanation."""
+    kept = []
+    for q in sorted(qs, key=lambda q: len(plain(q["why"])), reverse=True):
+        w = words(plain(q["q"])) - QUIZ_STOP
+        if not any(len(w & k) >= 3 and len(w & k) / min(len(w), len(k)) >= 0.6 for k in (words(plain(x["q"])) - QUIZ_STOP for x in kept)):
+            kept.append(q)
+    return sorted(kept, key=qs.index)  # back in the coachings' own order
 
 STOP = set("""a an the of in on for to and or is are was be by with from at as its it into how why what who
 will can new india indian upsc daily news key fact about explained editorial analysis""".split())
@@ -116,14 +178,21 @@ def group(items):
 
 def main(out):
     per_source = []
-    for name, fetch, *args in SOURCES:
+    for name, fetcher, *args in SOURCES:
         try:
-            per_source.append(list(fetch(name, *args)))
+            per_source.append(list(fetcher(name, *args)))
             print(f"{name}: {len(per_source[-1])}")
         except Exception as e:
             print(f"::warning::{name} failed: {e!r}")
+    quiz = []
+    for name, base, category in QUIZZES:
+        try:
+            quiz += list(proquiz(name, base, category))
+            print(f"{name} quiz: {sum(q['source'] == name for q in quiz)}")
+        except Exception as e:
+            print(f"::warning::{name} quiz failed: {e!r}")
     items = [x for row in zip_longest(*per_source) for x in row if x]  # interleave sources
-    feed = {"updated": NOW.isoformat(timespec="minutes"), "stories": group(items)}
+    feed = {"updated": NOW.isoformat(timespec="minutes"), "stories": group(items), "quiz": dedupe(quiz)}
     with open(out, "w", encoding="utf-8") as f:
         json.dump(feed, f, ensure_ascii=False, separators=(",", ":"))
 
