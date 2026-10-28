@@ -5,6 +5,10 @@ import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
@@ -37,23 +41,17 @@ private const val AVATAR = "https://avatars.githubusercontent.com/u/75922918?v=4
 
 class MainActivity : Activity() {
     private lateinit var list: ListView
-    private lateinit var label: TextView
     private lateinit var state: TextView
     private lateinit var summary: TextView
     private lateinit var refresh: View
-    private lateinit var quizCard: View
-    private lateinit var quizTitle: TextView
-    private lateinit var quizMeta: TextView
-    private lateinit var tabs: View
-    private lateinit var tabPills: List<TextView>
+    private lateinit var navItems: Map<String, View> // prelims, mains
+    private lateinit var navQuiz: View
     private lateinit var readRow: View
     private lateinit var readText: TextView
     private lateinit var readBar: View
     private lateinit var carousel: Carousel
-    private lateinit var greetEmoji: TextView
-    private lateinit var greetHello: TextView
-    private lateinit var greetName: TextView
-    private lateinit var greetLine: TextView
+    private lateinit var greetTitle: TextView
+    private lateinit var greetSub: TextView
     private val profile by lazy { getSharedPreferences("profile", MODE_PRIVATE) }
     private val spinner by lazy {
         ObjectAnimator.ofFloat(refresh, View.ROTATION, 0f, 360f).apply {
@@ -76,29 +74,33 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         list = findViewById(R.id.list)
         val header = layoutInflater.inflate(R.layout.header_feed, list, false)
-        label = header.findViewById(R.id.label)
         state = header.findViewById(R.id.state)
         summary = header.findViewById(R.id.summary)
         refresh = header.findViewById(R.id.refresh)
         refresh.setOnClickListener { it.haptic(); load() }
-        quizCard = header.findViewById(R.id.quizCard)
-        quizTitle = header.findViewById(R.id.quizTitle)
-        quizMeta = header.findViewById(R.id.quizMeta)
-        quizCard.setOnClickListener { it.haptic(); startActivity(Intent(this, QuizActivity::class.java)) }
-        tabs = header.findViewById(R.id.tabs)
-        tabPills = KINDS.map { (kind, _) ->
-            newPill(tabs as LinearLayout, "") { selectTab(kind) }.apply { layoutParams = LinearLayout.LayoutParams(0, 40.dp, 1f) }
+        navItems = mapOf(
+            "prelims" to navItem(R.id.navPrelims, R.drawable.ic_prelims, R.string.prelims),
+            "mains" to navItem(R.id.navMains, R.drawable.ic_mains, R.string.mains),
+        )
+        navItems.forEach { (kind, item) -> item.setOnClickListener { it.haptic(); selectTab(kind) } }
+        navQuiz = navItem(R.id.navQuiz, R.drawable.ic_quiz, R.string.nav_quiz).apply {
+            findViewById<View>(R.id.navPill).background = getDrawable(R.drawable.quiz_card) // the quiz always stands out
+            findViewById<ImageView>(R.id.navIcon).imageTintList = ColorStateList.valueOf(Color.WHITE)
+            setOnClickListener {
+                if (Feed.current?.quiz.isNullOrEmpty()) return@setOnClickListener
+                it.haptic()
+                findViewById<View>(R.id.navPill).bounce()
+                startActivity(Intent(this@MainActivity, QuizActivity::class.java))
+            }
         }
         readRow = header.findViewById(R.id.readRow)
         readText = header.findViewById(R.id.readText)
         readBar = header.findViewById(R.id.readBar)
         header.findViewById<View>(R.id.readTrack).clipToOutline = true
         carousel = Carousel(this, layoutInflater.inflate(R.layout.item_carousel, list, false)) { v, image, lead -> open(v, image, lead) }
-        greetEmoji = header.findViewById(R.id.greetEmoji)
-        greetHello = header.findViewById(R.id.greetHello)
-        greetName = header.findViewById(R.id.greetName)
-        greetLine = header.findViewById(R.id.greetLine)
-        header.findViewById<View>(R.id.greetCard).setOnLongClickListener { it.haptic(); welcome(); true } // change the name
+        greetTitle = header.findViewById(R.id.greetTitle)
+        greetSub = header.findViewById(R.id.greetSub)
+        header.findViewById<View>(R.id.greetRow).setOnLongClickListener { it.haptic(); welcome(); true } // change the name
         if (!profile.contains("name")) welcome()
 
         tab = savedInstanceState?.getString("tab") ?: tab
@@ -118,7 +120,12 @@ class MainActivity : Activity() {
         cols = (width / 320.dp).coerceIn(1, 3)
         edgeToEdge { i ->
             val side = 16.dp + gutter(width - i.left - i.right - 32.dp, cols * 440.dp)
-            list.setPadding(i.left + side, i.top + 8.dp, i.right + side, i.bottom + 24.dp)
+            list.setPadding(i.left + side, i.top + 8.dp, i.right + side, i.bottom + 112.dp) // room above the bottom bar
+            findViewById<View>(R.id.nav).apply {
+                // Absolute margins: start/end set after attach are not re-resolved, so the bar went edge to edge.
+                (layoutParams as ViewGroup.MarginLayoutParams).setMargins(i.left + side, 0, i.right + side, i.bottom + 12.dp)
+                requestLayout()
+            }
             findViewById<View>(R.id.scrim).apply { layoutParams.height = i.top + 28.dp; requestLayout() }
         }
 
@@ -148,7 +155,6 @@ class MainActivity : Activity() {
     private fun load() {
         if (loading) return
         loading = true
-        label.text = getString(R.string.today, DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(LocalDate.now(IST)).uppercase())
         greet()
         spinner.start()
         if (shown == null) {
@@ -180,13 +186,12 @@ class MainActivity : Activity() {
         state.visibility = if (empty) View.VISIBLE else View.GONE
         summary.visibility = state.visibility
         val n = feed.quiz.size
-        quizCard.visibility = if (n == 0) View.GONE else View.VISIBLE
-        quizTitle.text = resources.getQuantityString(R.plurals.questions, n, n)
-        quizMeta.text = getString(R.string.quiz_meta, (n * 6 + 4) / 5) // 72 s a question, the exam's pace
-        tabs.visibility = if (feed.stories.isEmpty()) View.GONE else View.VISIBLE
-        KINDS.forEachIndexed { i, (kind, label) ->
-            tabPills[i].text = getString(R.string.tab, getString(label), feed.stories.count { s -> s.any { it.kind == kind } })
+        navQuiz.alpha = if (n == 0) 0.4f else 1f // stays in place so the bar never shifts
+        navQuiz.findViewById<TextView>(R.id.navBadge).apply {
+            text = n.toString()
+            visibility = if (n == 0) View.GONE else View.VISIBLE
         }
+        navQuiz.contentDescription = getString(R.string.nav_quiz_desc, resources.getQuantityString(R.plurals.questions, n, n))
         if (feed.updated == shown) return
         val first = shown == null
         shown = feed.updated
@@ -200,9 +205,10 @@ class MainActivity : Activity() {
     private fun selectTab(kind: String, animate: Boolean = true) {
         if (animate && kind == tab) return
         tab = kind
-        KINDS.forEachIndexed { i, (k, _) -> tabPills[i].pill(k == kind, getColor(R.color.accent), animate) }
+        navItems.forEach { (k, item) -> paintNav(item, k == kind, animate, if (k == "mains") R.drawable.ic_mains_on else R.drawable.ic_prelims_on) }
         if (!animate) return
-        tabPills[KINDS.indexOfFirst { it.first == kind }].bounce()
+        navItems.getValue(kind).findViewById<View>(R.id.navPill).bounce()
+        list.setSelection(0) // a new tab starts at the top
         filter()
         // Only the rows below the header rise in; the header, tabs and quiz card stay put.
         list.post {
@@ -214,6 +220,35 @@ class MainActivity : Activity() {
                 row.animate().alpha(1f).translationY(0f).setStartDelay(i * 45L).setDuration(300).setInterpolator(DecelerateInterpolator())
             }
         }
+    }
+
+    private fun navItem(id: Int, icon: Int, label: Int): View = findViewById<View>(id).apply {
+        findViewById<ImageView>(R.id.navIcon).setImageResource(icon)
+        findViewById<TextView>(R.id.navLabel).setText(label)
+        findViewById<View>(R.id.navPill).background = GradientDrawable().apply { cornerRadius = 16.dp.toFloat() }
+    }
+
+    /** Selected: the pill fills with a soft accent and the icon and label darken. Colours morph, never snap. */
+    private fun paintNav(item: View, on: Boolean, animate: Boolean, filledIcon: Int) {
+        val accent = getColor(R.color.accent)
+        val pill = item.findViewById<View>(R.id.navPill).background as GradientDrawable
+        val to = accent and 0xFFFFFF or (if (on) 0x33000000 else 0)
+        if (animate) {
+            ValueAnimator.ofArgb(pill.color?.defaultColor ?: to, to).apply {
+                duration = 240
+                addUpdateListener { pill.setColor(it.animatedValue as Int) }
+                start()
+            }
+        } else pill.setColor(to)
+        item.findViewById<ImageView>(R.id.navIcon).apply {
+            if (on) setImageResource(filledIcon) else setImageResource(if (filledIcon == R.drawable.ic_mains_on) R.drawable.ic_mains else R.drawable.ic_prelims)
+            imageTintList = ColorStateList.valueOf(getColor(if (on) R.color.accent else R.color.ink2))
+        }
+        item.findViewById<TextView>(R.id.navLabel).apply {
+            setTextColor(getColor(if (on) R.color.ink else R.color.ink2))
+            typeface = Typeface.create(typeface, if (on) 700 else 500, false)
+        }
+        item.isSelected = on
     }
 
     private fun filter() {
@@ -234,9 +269,7 @@ class MainActivity : Activity() {
         readText.setTextColor(getColor(if (all) R.color.good else R.color.ink2))
         readBar.setBackgroundColor(getColor(if (all) R.color.good else R.color.accent))
         readBar.animate().scaleX(if (stories.isEmpty()) 0f else done / stories.size.toFloat()).setDuration(500)
-        val unread = Feed.current?.stories.orEmpty().count { !it.read() }
-        greetLine.text = if (unread == 0 && done > 0) getString(R.string.greet_done)
-            else getString(R.string.greet_line, resources.getQuantityString(R.plurals.stories, unread, unread))
+        greetContext()
         if (all && !caughtUp) {
             readText.bounce()
             readText.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
@@ -252,9 +285,18 @@ class MainActivity : Activity() {
             in 17..20 -> "🌆" to R.string.hello_evening
             else -> "🌙" to R.string.hello_night
         }
-        greetEmoji.text = emoji
-        greetHello.setText(hello)
-        greetName.text = profile.getString("name", null)?.ifBlank { null } ?: getString(R.string.hello_reader)
+        val name = profile.getString("name", null)?.ifBlank { null } ?: getString(R.string.hello_reader)
+        greetTitle.text = "${getString(hello)} $name $emoji"
+        greetContext()
+    }
+
+    /** "Wed, 28 Oct · 20 unread", or "all read ✓" once the day's stories are done. */
+    private fun greetContext() {
+        val date = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(LocalDate.now(IST))
+        val all = Feed.current?.stories.orEmpty()
+        val unread = all.count { !it.read() }
+        greetSub.text = if (all.isEmpty()) date
+            else getString(R.string.greet_sub, date, if (unread == 0) getString(R.string.greet_done) else getString(R.string.unread, unread))
     }
 
     /** One question on first launch; long-press the greeting to change the answer. Skipping counts as answered. */
@@ -339,8 +381,7 @@ class MainActivity : Activity() {
         val read = story.read()
         h.sources.text = meta(story, read)
         h.title.text = lead.title
-        h.title.alpha = if (read) 0.55f else 1f
-        h.thumb.alpha = if (read) 0.55f else 1f
+        card.background = getDrawable(if (read) R.drawable.card_read else R.drawable.card)
         h.mono.text = lead.title.take(1)
         h.mono.background = sourceGradient(lead.source)
         h.image.visibility = if (lead.image == null) View.GONE else View.VISIBLE

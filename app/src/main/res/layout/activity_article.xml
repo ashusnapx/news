@@ -168,6 +168,18 @@
         android:transformPivotX="0dp" />
 
     <ImageButton
+        android:id="@+id/paperBtn"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:background="@drawable/round_btn"
+        android:contentDescription="@string/to_paper"
+        android:padding="12dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_paper" />
+
+    <ImageButton
         android:id="@+id/back"
         android:layout_width="48dp"
         android:layout_height="48dp"

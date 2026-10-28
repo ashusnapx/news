@@ -41,3 +41,4 @@ cd scraper && python3 test_scrape.py   # grouping + Drishti parsing, offline
 
 - GitHub disables scheduled workflows in public repos after 60 days without commits. Push anything (or re-enable in Actions) to wake it.
 - Personal use only: the scraped content belongs to the coaching institutes.
+- Icons: [Phosphor Icons](https://phosphoricons.com) (MIT), converted to vector drawables. Fonts: Instrument Serif, Plus Jakarta Sans, Literata (SIL OFL 1.1), subset to Latin.

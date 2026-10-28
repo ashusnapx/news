@@ -2,7 +2,16 @@ package com.ashusnapx.news
 
 import android.app.Activity
 import android.app.SharedElementCallback
+import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Shader
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
+import android.util.DisplayMetrics
 import android.net.Uri
 import android.os.Bundle
 import android.text.SpannableStringBuilder
@@ -65,7 +74,11 @@ class ArticleActivity : Activity() {
     private var hasHero = false
     private var selected = -1
     private var barShown = false
-    private var switched = false // swiped to another story: the hero no longer belongs to the card we came from
+    private var switched = false
+    private lateinit var sheet: View
+    private lateinit var paperBtn: ImageView
+    private val prefs by lazy { getSharedPreferences("profile", MODE_PRIVATE) }
+    private var paper = false // reading on paper (warm stock, grain, sepia ink) instead of the screen theme // swiped to another story: the hero no longer belongs to the card we came from
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,7 +98,10 @@ class ArticleActivity : Activity() {
         toggle = findViewById(R.id.toggleScroll)
         track = findViewById(R.id.toggle)
         upNext = findViewById(R.id.upNext)
-        val sheet = findViewById<View>(R.id.sheet)
+        sheet = findViewById(R.id.sheet)
+        paperBtn = findViewById(R.id.paperBtn)
+        paper = prefs.getBoolean("paper", false)
+        paperBtn.setOnClickListener { it.haptic(); togglePaper() }
         val nextWrap = findViewById<View>(R.id.nextWrap)
         val back = findViewById<View>(R.id.back)
         hero.layoutParams.height = minOf(300.dp, windowManager.currentWindowMetrics.bounds.height() * 2 / 5) // landscape, folds
@@ -111,6 +127,8 @@ class ArticleActivity : Activity() {
             bar.minHeight = i.top + 56.dp
             bar.setPadding(i.left + 72.dp, i.top, i.right + 20.dp, 0)
             (back.layoutParams as MarginLayoutParams).apply { topMargin = i.top + 4.dp; marginStart = i.left + 8.dp }
+            (paperBtn.layoutParams as MarginLayoutParams).setMargins(0, i.top + 4.dp, i.right + 8.dp, 0)
+            paperBtn.requestLayout()
             (progress.layoutParams as MarginLayoutParams).topMargin = i.top
             back.requestLayout()
             progress.requestLayout()
@@ -129,6 +147,7 @@ class ArticleActivity : Activity() {
             }
         }
 
+        surface()
         open(story)
     }
 
@@ -288,8 +307,8 @@ class ArticleActivity : Activity() {
     /** Coaching HTML restyled into one calm reading theme, accented in the coaching's colour. */
     private fun page(html: String, source: String): String {
         fun c(color: Int) = "#%06X".format(color and 0xFFFFFF)
-        val ink = c(getColor(R.color.ink))
-        val line = c(getColor(R.color.line))
+        val ink = c(ink())
+        val line = c(col(R.color.line, R.color.paper_line))
         val src = c(getColor(sourceColor(source)))
         val f = "https://$FONT_HOST/"
         return """<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -310,6 +329,72 @@ td,th{border:1px solid $line;padding:10px;vertical-align:top}
 th{background:${src}1F!important}
 blockquote{margin:1.2em 0;padding:2px 0 2px 16px;border-left:3px solid $src;font-style:italic}
 </style></head><body>$html</body></html>"""
+    }
+
+    private fun col(screen: Int, onPaper: Int) = getColor(if (paper) onPaper else screen)
+    private fun ink() = col(R.color.ink, R.color.paper_ink)
+
+    /** The page itself: theme surface, or paper stock with a faint grain; every reading colour follows. */
+    private fun surface() {
+        val bg = col(R.color.surface, R.color.paper_bg)
+        window.setBackgroundDrawable(page(bg))
+        scroll.getChildAt(0).background = page(bg)
+        sheet.background = GradientDrawable().apply {
+            val r = 28.dp.toFloat()
+            cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+            setColor(bg)
+        }
+        sheet.foreground = if (paper) grain() else null
+        sheet.clipToOutline = true // keeps the grain inside the rounded top
+        title.setTextColor(ink())
+        meta.setTextColor(col(R.color.ink2, R.color.paper_ink2))
+        bar.setBackgroundColor(bg)
+        bar.setTextColor(ink())
+        track.background = GradientDrawable().apply { cornerRadius = 100.dp.toFloat(); setColor(col(R.color.bg, R.color.paper_raised)) }
+        upNext.background = GradientDrawable().apply {
+            cornerRadius = 22.dp.toFloat()
+            setColor(col(R.color.surface, R.color.paper_raised))
+            setStroke(1.dp, col(R.color.line, R.color.paper_line))
+        }
+        findViewById<TextView>(R.id.nextTitle).setTextColor(ink())
+        paperBtn.setImageResource(if (paper) R.drawable.ic_screen else R.drawable.ic_paper)
+        paperBtn.contentDescription = getString(if (paper) R.string.to_screen else R.string.to_paper)
+    }
+
+    private fun page(bg: Int): Drawable = if (paper) LayerDrawable(arrayOf(ColorDrawable(bg), grain())) else ColorDrawable(bg)
+
+    /** Paper grain, generated rather than shipped: sparse speckles, drawn at ~3 device pixels each. */
+    private fun grain(): Drawable {
+        val bitmap = paperGrain ?: run {
+            val size = 128
+            val random = java.util.Random(7)
+            val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            val px = IntArray(size * size) {
+                val a = if (random.nextInt(3) == 0) random.nextInt(if (night) 10 else 16) else 0
+                if (night) Color.argb(a, 255, 236, 200) else Color.argb(a, 70, 50, 20)
+            }
+            Bitmap.createBitmap(px, size, size, Bitmap.Config.ARGB_8888).apply { density = DisplayMetrics.DENSITY_MEDIUM }
+        }.also { paperGrain = it }
+        return BitmapDrawable(resources, bitmap).apply { setTileModeXY(Shader.TileMode.REPEAT, Shader.TileMode.REPEAT) }
+    }
+
+    private var paperGrain: Bitmap? = null
+
+    /** Paper <-> screen: the page fades across, and the article keeps its place. */
+    private fun togglePaper() {
+        val y = scroll.scrollY
+        scroll.animate().alpha(0f).setDuration(140).withEndAction {
+            paper = !paper
+            prefs.edit().putBoolean("paper", paper).apply()
+            surface()
+            show(story[selected])
+            web?.postVisualStateCallback(0, object : WebView.VisualStateCallback() {
+                override fun onComplete(requestId: Long) {
+                    scroll.scrollTo(0, y)
+                    scroll.animate().alpha(1f).setDuration(220)
+                }
+            })
+        }
     }
 
     private fun viewImage(url: String) {

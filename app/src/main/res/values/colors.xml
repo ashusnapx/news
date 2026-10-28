@@ -2,8 +2,14 @@
 <resources>
     <color name="bg">#F6F5F2</color>
     <color name="bg_clear">#00F6F5F2</color> <!-- bg at zero alpha: fades without a grey midpoint -->
-    <color name="greet_start">#ECE9FF</color>
-    <color name="greet_end">#F8F6FF</color>
+    <color name="good_soft">#EDF7F0</color>
+    <color name="good_line">#C4E5CF</color>
+    <!-- Paper reading mode: warm stock, sepia ink. -->
+    <color name="paper_bg">#F4ECD8</color>
+    <color name="paper_ink">#2E2820</color>
+    <color name="paper_ink2">#6F6352</color>
+    <color name="paper_line">#E2D5B8</color>
+    <color name="paper_raised">#FAF4E4</color>
     <color name="surface">#FFFFFF</color>
     <color name="ink">#15141A</color>
     <color name="ink2">#6A6875</color>

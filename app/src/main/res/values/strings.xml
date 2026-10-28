@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">UPSC Today</string>
-    <string name="today">%1$s</string>
-    <string name="refresh">Refresh</string>
+        <string name="refresh">Refresh</string>
     <string name="back">Back</string>
     <string name="loading">Fetching today’s stories…</string>
     <string name="offline">Can’t reach the server. Tap refresh to try again.</string>
@@ -14,12 +13,11 @@
     <string name="more">MORE STORIES</string>
     <string name="dot">  ·  </string>
     <string name="min_short">%1$d min</string>
+    <string name="nav_quiz">Quiz</string>
+    <string name="nav_quiz_desc">Today’s quiz, %1$s</string>
     <string name="prelims">Prelims</string>
     <string name="mains">Mains</string>
-    <string name="tab">%1$s  %2$d</string>
     <string name="quiz_label">TODAY’S QUIZ</string>
-    <string name="quiz_start">Start →</string>
-    <string name="quiz_meta">~%1$d min  ·  UPSC marking</string>
     <string name="quiz_step">QUESTION %1$d OF %2$d</string>
     <string name="quiz_right">Correct  +2</string>
     <string name="quiz_wrong">Not quite  −0.66</string>
@@ -60,6 +58,8 @@
     <string name="s_instagram" translatable="false">Instagram</string>
     <string name="s_medium" translatable="false">Medium</string>
     <string name="s_website">Website</string>
+    <string name="to_paper">Switch to paper</string>
+    <string name="to_screen">Switch to screen</string>
     <string name="made_by">Made by Ashutosh Kumar</string>
     <string name="author">Ashutosh Kumar</string>
     <string name="author_line">Generative AI Engineer  ·  Bengaluru</string>
@@ -82,13 +82,10 @@
     <string name="hello_morning">Good morning,</string>
     <string name="hello_afternoon">Good afternoon,</string>
     <string name="hello_evening">Good evening,</string>
-    <string name="hello_night">Burning the midnight oil,</string>
+    <string name="hello_night">Up late,</string>
     <string name="hello_reader">aspirant</string>
-    <string name="greet_line">%1$s waiting</string>
-    <string name="greet_done">All read. Well done.</string>
-    <plurals name="stories">
-        <item quantity="one">%d story</item>
-        <item quantity="other">%d stories</item>
-    </plurals>
+    <string name="greet_sub">%1$s  ·  %2$s</string>
+    <string name="unread">%1$d unread</string>
+    <string name="greet_done">all read ✓</string>
     <string name="meta">  ·  %1$d min read  ·  Original ↗</string>
 </resources>

@@ -6,142 +6,52 @@
     android:paddingTop="4dp"
     android:paddingBottom="16dp">
 
-    <!-- Greeting on the left, today's quiz on the right; equal heights. -->
+    <!-- One line of greeting, one of context; long-press to change the name. -->
     <LinearLayout
+        android:id="@+id/greetRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:baselineAligned="false"
-        android:orientation="horizontal">
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="0dp">
 
         <LinearLayout
-            android:id="@+id/greetCard"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/greet_card"
-            android:foreground="?android:attr/selectableItemBackground"
-            android:orientation="vertical"
-            android:padding="18dp"
-            android:stateListAnimator="@animator/press">
+            android:orientation="vertical">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/greetTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/greetEmoji"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:importantForAccessibility="no"
-                    android:textSize="24sp" />
-
-                <ImageButton
-                    android:id="@+id/refresh"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/refresh"
-                    android:padding="8dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_refresh" />
-            </LinearLayout>
+                android:accessibilityHeading="true"
+                android:ellipsize="end"
+                android:fontFamily="@font/instrument_serif"
+                android:singleLine="true"
+                android:textColor="@color/ink"
+                android:textSize="27sp" />
 
             <TextView
-                android:id="@+id/label"
+                android:id="@+id/greetSub"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:letterSpacing="0.12"
-                android:textColor="@color/accent"
-                android:textFontWeight="700"
-                android:textSize="11sp" />
-
-            <TextView
-                android:id="@+id/greetHello"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="1dp"
+                android:accessibilityLiveRegion="polite"
                 android:textColor="@color/ink2"
                 android:textFontWeight="500"
                 android:textSize="13sp" />
-
-            <TextView
-                android:id="@+id/greetName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="@font/instrument_serif"
-                android:includeFontPadding="false"
-                android:maxLines="2"
-                android:textColor="@color/ink"
-                android:textSize="28sp" />
-
-            <TextView
-                android:id="@+id/greetLine"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:textColor="@color/accent"
-                android:textFontWeight="700"
-                android:textSize="12sp" />
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/quizCard"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:background="@drawable/quiz_card"
-            android:foreground="?android:attr/selectableItemBackground"
-            android:orientation="vertical"
-            android:padding="18dp"
-            android:stateListAnimator="@animator/press"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:letterSpacing="0.14"
-                android:text="@string/quiz_label"
-                android:textColor="#CCFFFFFF"
-                android:textFontWeight="700"
-                android:textSize="11sp" />
-
-            <TextView
-                android:id="@+id/quizTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:fontFamily="@font/instrument_serif"
-                android:includeFontPadding="false"
-                android:textColor="#FFFFFF"
-                android:textSize="28sp" />
-
-            <TextView
-                android:id="@+id/quizMeta"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textColor="#D9FFFFFF"
-                android:textFontWeight="500"
-                android:textSize="12sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_marginTop="14dp"
-                android:background="@drawable/start_pill"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="@string/quiz_start"
-                android:textColor="@color/accent"
-                android:textFontWeight="700"
-                android:textSize="13sp" />
-        </LinearLayout>
+        <ImageButton
+            android:id="@+id/refresh"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/refresh"
+            android:src="@drawable/ic_refresh" />
     </LinearLayout>
 
     <!-- Only when there is something to say: first load, offline, nothing published. -->
@@ -166,16 +76,6 @@
         android:lineSpacingExtra="2dp"
         android:textColor="@color/ink2"
         android:textSize="14sp"
-        android:visibility="gone" />
-
-    <LinearLayout
-        android:id="@+id/tabs"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:background="@drawable/track_strong"
-        android:orientation="horizontal"
-        android:padding="4dp"
         android:visibility="gone" />
 
     <LinearLayout
