@@ -31,5 +31,6 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
+          retention-days: 1 # only the live feed matters; yesterday's copies are deleted, not archived
       - id: deploy
         uses: actions/deploy-pages@v5
