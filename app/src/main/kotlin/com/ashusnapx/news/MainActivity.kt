@@ -168,6 +168,7 @@ class MainActivity : Activity() {
     override fun onStart() {
         super.onStart()
         Reminder.opened(this)
+        Analytics.profile(this)
         reads = Reads.all(this) // coming back from an article: dim it, move the progress bar
         adapter.notifyDataSetChanged()
         progress()
@@ -176,7 +177,6 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
-        Analytics.flush(this)
         carousel.pause()
         super.onStop()
     }
@@ -240,6 +240,7 @@ class MainActivity : Activity() {
                 spinner.cancel()
                 refresh.animate().translationY(-64.dp.toFloat()).alpha(0f).rotation(0f).setDuration(260) // tuck the badge away
                 result.onSuccess(::show).onFailure {
+                    Analytics.log(this, "feed_error", "kind" to (it::class.simpleName ?: "error"))
                     if (shown != null) return@onFailure
                     state.setText(R.string.state_offline)
                     state.visibility = View.VISIBLE
@@ -408,7 +409,7 @@ class MainActivity : Activity() {
 
     /** Consent for anonymous stats: asked once, only when analytics is configured, never again whatever the answer. */
     private fun askStats() {
-        if (!BuildConfig.GA_ID.isNotEmpty() || Analytics.asked(this)) return
+        if (Analytics.asked(this)) return
         AlertDialog.Builder(this)
             .setTitle(R.string.stats_title)
             .setMessage(R.string.stats_body)

@@ -48,7 +48,7 @@ class YouActivity : Activity() {
             confirm(R.string.clear_highlights_title) { Store.clearHighlights(this); Analytics.log(this, "clear_all", "what" to "highlights"); render() }
         }
         findViewById<Switch>(R.id.stats).apply {
-            visibility = if (BuildConfig.GA_ID.isNotEmpty()) View.VISIBLE else View.GONE
+            visibility = View.VISIBLE
             isChecked = Analytics.enabled(this@YouActivity)
             setOnCheckedChangeListener { v, on -> v.haptic(); Analytics.setEnabled(this@YouActivity, on) }
         }
@@ -66,7 +66,6 @@ class YouActivity : Activity() {
     }
 
     override fun onStop() {
-        Analytics.flush(this)
         Store.pruneKept(this) // past the undo window: drop stored stories no highlight points at
         super.onStop()
     }

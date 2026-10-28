@@ -53,6 +53,7 @@ class QuizActivity : Activity() {
     private var streak = 0
     private var shownMarks = 0f
     private var pacer: ObjectAnimator? = null
+    private var shownAt = 0L // when the current question appeared
     private lateinit var setPills: List<TextView>
 
     private lateinit var scroll: ScrollView
@@ -207,7 +208,6 @@ class QuizActivity : Activity() {
     }
 
     override fun onStop() {
-        Analytics.flush(this)
         super.onStop()
     }
 
@@ -262,6 +262,7 @@ class QuizActivity : Activity() {
         streakView.text = getString(R.string.streak, streak)
         paintBoard()
         scroll.scrollTo(0, 0)
+        shownAt = System.currentTimeMillis()
 
         pacer?.cancel()
         pace.setBackgroundColor(getColor(R.color.accent))
@@ -298,7 +299,9 @@ class QuizActivity : Activity() {
             else -> WRONG
         }
         streak = if (outcomes[index] == RIGHT) streak + 1 else 0
-        Analytics.log(this, "quiz_answer", "result" to when (outcomes[index]) { RIGHT -> "right"; WRONG -> "wrong"; else -> "skip" })
+        Analytics.log(this, "quiz_answer", "result" to when (outcomes[index]) { RIGHT -> "right"; WRONG -> "wrong"; else -> "skip" },
+            "seconds" to (System.currentTimeMillis() - shownAt) / 1000, "ruled_out" to (0 until options.childCount).count { options.getChildAt(it).tag == true },
+            "q_index" to index + 1, "source" to q.source, "revision" to (set == reviseSet).toString())
         // The revision deck learns from every answer: wrong or skipped comes back tomorrow, right moves it along.
         if (set == reviseSet) Store.reviewed(this, q, outcomes[index] == RIGHT)
         else if (outcomes[index] != RIGHT) Store.missed(this, q)

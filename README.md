@@ -13,7 +13,7 @@ GitHub Actions (hourly, 06:00–23:00 IST)
 ```
 
 - **Scraper** (`scraper/`, Python stdlib only): WordPress REST API for Vajiram & Ravi, Insights IAS and ForumIAS; the dated news-analysis page for Drishti IAS. Keeps the **last 24 hours**, groups the same story across coachings, and tags each with prelims/mains and its GS papers. Daily quizzes come from Vajiram & Ravi, IASbaba and Legacy IAS (last 48 hours, one quiz per coaching), with the same question from two coachings kept once. A broken source logs a warning and is skipped.
-- **App** (`app/`, Kotlin + platform views, zero dependencies): fetches `news.json`, shows the feed, opens full articles in-app (paper or screen, listen, save, highlight, share), runs the quiz with UPSC marking, and keeps a streak, a daily goal, saved stories and a revision deck on the phone. Shows nothing older than 24 hours.
+- **App** (`app/`, Kotlin + platform views, no dependencies except Firebase Analytics): fetches `news.json`, shows the feed, opens full articles in-app (paper or screen, listen, save, highlight, share), runs the quiz with UPSC marking, and keeps a streak, a daily goal, saved stories and a revision deck on the phone. Shows nothing older than 24 hours.
 
 ## Setup
 
@@ -31,20 +31,19 @@ adb install app/build/outputs/apk/release/app-release.apk
 
 Needs JDK 17+ and Android SDK 37.
 
-## Usage stats (optional)
+## Usage stats
 
-Off unless configured, and even then only after the reader says yes (a one-time prompt, and a switch in You).
-GA4 Measurement Protocol over HTTPS, no SDK. Sent: screens and features used, quiz results, reminders tapped.
-Never sent: the reader's name, highlighted text, or any device identifier (a random per-install id is used).
+Google Analytics for Firebase, the app's one dependency. Off until the reader says yes (a one-time prompt, and a
+switch in You); never the advertising ID or Android ID; no ad personalisation. Sent: screens and features used,
+quiz results, reminders tapped. Never sent: the reader's name or highlighted text.
 
-1. Google Analytics → Admin → create a GA4 property → Data streams → **Web** stream (any URL).
-2. Copy its Measurement ID (`G-…`); in the stream, Measurement Protocol API secrets → create one.
-3. Put both in `~/.gradle/gradle.properties` (outside the repo, never committed):
-   ```
-   gaId=G-XXXXXXXXXX
-   gaSecret=xxxxxxxxxxxxxxxx
-   ```
-4. Rebuild. Events show in GA → Reports → Realtime within a minute.
+Needs `app/google-services.json` from the Firebase console (Project settings → Your apps → Android app with
+package `com.ashusnapx.news`). It is git-ignored because the repo is public. Events show in Firebase →
+Analytics → Realtime; to watch them as they happen while testing:
+
+```sh
+adb shell setprop debug.firebase.analytics.app com.ashusnapx.news   # Firebase DebugView
+```
 
 ## Tests
 

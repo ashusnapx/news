@@ -7,3 +7,4 @@ local.properties
 .DS_Store
 site/
 __pycache__/
+app/google-services.json

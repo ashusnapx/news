@@ -1,70 +1,62 @@
 package com.ashusnapx.news
 
 import android.content.Context
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.UUID
-import java.util.concurrent.Executors
+import android.os.Bundle
+import com.google.firebase.analytics.FirebaseAnalytics
 
 /**
- * Anonymous usage stats, sent only after the reader says yes. GA4 Measurement Protocol over plain HTTPS, so no
- * Google SDK. Events carry what was used, never who: no name, no highlighted text, no device identifiers; the id
- * is a random UUID made on this install. Off entirely until GA_ID and GA_SECRET are set at build time.
+ * Anonymous usage stats through Google Analytics for Firebase, only after the reader says yes. Collection is off
+ * in the manifest until then, and never uses the advertising ID or Android ID. Events say what was used, never
+ * who: no name, no highlighted text.
  */
 object Analytics {
-    private val io = Executors.newSingleThreadExecutor()
-    private val queue = mutableListOf<JSONObject>()
-    private val session = System.currentTimeMillis() / 1000
-
     private fun prefs(c: Context) = c.getSharedPreferences("profile", Context.MODE_PRIVATE)
-    private val configured get() = BuildConfig.GA_ID.isNotEmpty() && BuildConfig.GA_SECRET.isNotEmpty()
+    private fun fa(c: Context) = FirebaseAnalytics.getInstance(c.applicationContext)
 
     fun asked(c: Context) = prefs(c).contains("stats")
-    fun enabled(c: Context) = configured && prefs(c).getBoolean("stats", false)
+    fun enabled(c: Context) = prefs(c).getBoolean("stats", false)
 
+    /** Firebase remembers this across launches; the preference only records that the question was answered. */
     fun setEnabled(c: Context, on: Boolean) {
         prefs(c).edit().putBoolean("stats", on).apply()
-        if (!on) synchronized(queue) { queue.clear() }
+        fa(c).setAnalyticsCollectionEnabled(on)
+        if (!on) fa(c).resetAnalyticsData() // and forget the install id it had
     }
 
-    private fun id(c: Context): String = prefs(c).getString("statsId", null)
-        ?: UUID.randomUUID().toString().also { prefs(c).edit().putString("statsId", it).apply() }
+    /**
+     * Anonymous profile for slicing the stats: habits and settings in coarse buckets, nothing that names anyone.
+     * Firebase caps user property names at 24 characters and values at 36.
+     */
+    fun profile(c: Context) {
+        if (!enabled(c)) return
+        fun bucket(n: Int, vararg edges: Int) = edges.lastOrNull { n >= it }?.let { if (it == edges.last()) "$it+" else "$it" } ?: "0"
+        val night = (c.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val p = prefs(c)
+        mapOf(
+            "streak" to bucket(Store.streak(c), 0, 1, 3, 7, 14, 30),
+            "goal" to p.getInt("goal", 10).toString(),
+            "paper_mode" to p.getBoolean("paper", false).toString(),
+            "theme" to if (night) "dark" else "light",
+            "text_size" to "%.2f".format(c.resources.configuration.fontScale),
+            "saved" to bucket(Store.saved(c).size, 0, 1, 5, 10, 25),
+            "highlights" to bucket(Store.highlights(c).size, 0, 1, 5, 10, 25),
+            "reminders" to c.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled().toString(),
+        ).forEach { (k, v) -> fa(c).setUserProperty(k, v) }
+    }
 
-    /** Queue an event; values are plain strings and numbers only. */
+    /** Values are plain strings and numbers only; Firebase caps names at 40 characters and values at 100. */
     fun log(c: Context, name: String, vararg params: Pair<String, Any>) {
         if (!enabled(c)) return
-        val p = JSONObject().put("session_id", session).put("engagement_time_msec", 100)
-        params.forEach { (k, v) -> p.put(k, if (v is Number) v else v.toString().take(100)) }
-        synchronized(queue) {
-            queue += JSONObject().put("name", name).put("params", p)
-            if (queue.size >= 20) flush(c)
-        }
-    }
-
-    /** Send what is queued, 25 events a request (the protocol's cap). Called when screens stop. */
-    fun flush(c: Context) {
-        if (!enabled(c)) return
-        val batch = synchronized(queue) { queue.toList().also { queue.clear() } }
-        if (batch.isEmpty()) return
-        val client = id(c)
-        io.execute {
-            batch.chunked(25).forEach { events ->
-                runCatching {
-                    val url = URL("https://www.google-analytics.com/mp/collect?measurement_id=${BuildConfig.GA_ID}&api_secret=${BuildConfig.GA_SECRET}")
-                    (url.openConnection() as HttpURLConnection).run {
-                        requestMethod = "POST"
-                        doOutput = true
-                        connectTimeout = 10_000
-                        readTimeout = 10_000
-                        setRequestProperty("Content-Type", "application/json")
-                        outputStream.use { it.write(JSONObject().put("client_id", client).put("events", JSONArray(events)).toString().toByteArray()) }
-                        responseCode // fire and forget: lost stats never cost the reader anything
-                        disconnect()
-                    }
+        fa(c).logEvent(name, Bundle().apply {
+            params.forEach { (k, v) ->
+                when (v) {
+                    is Int -> putLong(k, v.toLong())
+                    is Long -> putLong(k, v)
+                    is Number -> putDouble(k, v.toDouble())
+                    else -> putString(k, v.toString().take(100))
                 }
             }
-        }
+        })
     }
 }

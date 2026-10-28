@@ -90,7 +90,7 @@
     <string name="highlights_label">HIGHLIGHTS  ·  %1$d</string>
     <string name="highlights_empty">Select text in an article and tap Highlight. Long-press a highlight here to remove it.</string>
     <string name="stats_title">Help improve UPSC Today?</string>
-    <string name="stats_body">Share anonymous usage stats: which screens and features get used, quiz scores, reminders tapped. Never your name, your highlights, or anything that identifies your phone. You can turn this off any time in You.</string>
+    <string name="stats_body">Share anonymous usage stats: what you read and for how long, how you use the features and the quiz, which reminders you open, and your phone model, Android version and country. Never your name, your highlights, or your phone’s IDs. Turn it off any time in You.</string>
     <string name="stats_yes">Share stats</string>
     <string name="stats_no">No thanks</string>
     <string name="stats_switch">Share anonymous usage stats</string>

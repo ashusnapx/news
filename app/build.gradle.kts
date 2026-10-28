@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services") // reads app/google-services.json (git-ignored: it holds the project's API key)
 }
 
 android {
@@ -12,14 +13,6 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-        // Analytics stays off unless both are set, e.g. in ~/.gradle/gradle.properties (never committed):
-        //   gaId=G-XXXXXXX   gaSecret=xxxxxxxx
-        buildConfigField("String", "GA_ID", "\"${providers.gradleProperty("gaId").getOrElse("")}\"")
-        buildConfigField("String", "GA_SECRET", "\"${providers.gradleProperty("gaSecret").getOrElse("")}\"")
-    }
-
-    buildFeatures {
-        buildConfig = true
     }
 
     buildTypes {
@@ -36,4 +29,10 @@ android {
         includeInApk = false
         includeInBundle = false
     }
+}
+
+dependencies {
+    // The app's only dependency: Google Analytics for Firebase, the one route GA4 accepts for app installs.
+    implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
+    implementation("com.google.firebase:firebase-analytics")
 }

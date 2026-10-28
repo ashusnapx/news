@@ -102,6 +102,11 @@ class ArticleActivity : Activity() {
             else if (intent.getBooleanExtra(KEPT, false)) listOfNotNull(link?.let { Store.article(this, it) }).map { listOf(it) }
             else Feed.current?.stories.orEmpty().filter { s -> tab == null || s.any { it.kind == tab } }
         story = stories.find { s -> s.any { it.link == link } } ?: return finish()
+        openedFrom = when {
+            intent.getBooleanExtra(SAVED, false) -> "saved"
+            intent.getBooleanExtra(KEPT, false) -> "highlight"
+            else -> "feed"
+        }
         setContentView(R.layout.activity_article)
         scroll = findViewById(R.id.scroll)
         hero = findViewById(R.id.hero)
@@ -170,6 +175,7 @@ class ArticleActivity : Activity() {
         scroll.setOnScrollChangeListener { _, _, y, _, _ ->
             hero.translationY = y * 0.45f
             progress.scaleX = (y / (content.height - scroll.height).coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+            depth = maxOf(depth, progress.scaleX)
             val start = if (hasHero) hero.height - bar.height else 0
             bar.alpha = ((y - start) / 48.dp.toFloat()).coerceIn(0f, 1f)
             if ((bar.alpha > 0.5f) != barShown) {
@@ -227,6 +233,8 @@ class ArticleActivity : Activity() {
             return
         }
         switched = true
+        readStat() // the story being left
+        openedFrom = "swipe"
         Analytics.log(this, "swipe_story", "direction" to if (step > 0) "next" else "previous")
         scroll.haptic()
         scroll.animate().translationX(-step * w).alpha(0f).setDuration(150).setInterpolator(AccelerateInterpolator()).withEndAction {
@@ -264,6 +272,8 @@ class ArticleActivity : Activity() {
     }
 
     private var openedAt = 0L
+    private var depth = 0f // furthest point reached in this story, 0..1
+    private var openedFrom = "feed" // feed, saved, highlight, swipe
 
     override fun onResume() {
         super.onResume()
@@ -271,9 +281,18 @@ class ArticleActivity : Activity() {
     }
 
     override fun onPause() {
-        Analytics.log(this, "read_time", "seconds" to (System.currentTimeMillis() - openedAt) / 1000, "source" to story[selected].source)
-        Analytics.flush(this)
+        readStat()
         super.onPause()
+    }
+
+    /** One "read" per story: time on it, how far down it got, and where it was opened from. */
+    private fun readStat() {
+        if (!this::story.isInitialized || openedAt == 0L) return
+        val item = story[selected]
+        Analytics.log(this, "read", "seconds" to (System.currentTimeMillis() - openedAt) / 1000, "depth_pct" to (depth * 100).toInt(),
+            "source" to item.source, "kind" to item.kind, "gs" to item.gs.joinToString(","), "from" to openedFrom)
+        openedAt = System.currentTimeMillis()
+        depth = 0f
     }
 
     override fun onDestroy() {
