@@ -12,6 +12,14 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        // Analytics stays off unless both are set, e.g. in ~/.gradle/gradle.properties (never committed):
+        //   gaId=G-XXXXXXX   gaSecret=xxxxxxxx
+        buildConfigField("String", "GA_ID", "\"${providers.gradleProperty("gaId").getOrElse("")}\"")
+        buildConfigField("String", "GA_SECRET", "\"${providers.gradleProperty("gaSecret").getOrElse("")}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {

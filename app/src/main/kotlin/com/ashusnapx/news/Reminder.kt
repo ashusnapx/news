@@ -31,6 +31,7 @@ import java.time.temporal.TemporalAdjusters
 class Reminder : BroadcastReceiver() {
     companion object {
         const val ACTION = "com.ashusnapx.news.REMIND"
+        const val FROM = "fromReminder" // which reminder opened the app, for the stats
         private const val CHANNEL = "daily"
         private val SLOTS = listOf("morning" to LocalTime.of(8, 0), "quiz" to LocalTime.of(14, 0), "evening" to LocalTime.of(20, 30))
 
@@ -112,7 +113,7 @@ class Reminder : BroadcastReceiver() {
 
         channel(c, nm)
         // Same filter as the launcher, so the strict intent matching the manifest opts into still lets it through.
-        val main = Intent(c, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val main = Intent(c, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).putExtra(FROM, slot)
         val tap = if (slot == "quiz") {
             PendingIntent.getActivities(c, 10, arrayOf(main, Intent(c, QuizActivity::class.java)), PendingIntent.FLAG_IMMUTABLE)
         } else {
@@ -155,6 +156,8 @@ class Reminder : BroadcastReceiver() {
             else -> builder.setStyle(Notification.BigTextStyle().bigText(text))
         }
         nm.notify(SLOTS.indexOfFirst { it.first == slot }, builder.build())
+        Analytics.log(c, "notification_shown", "slot" to slot, "slides" to slides.size)
+        Analytics.flush(c)
     }
 
     /** Sunday's nudge to revise and clear; nothing saved, nothing sent. Opens the You tab over the feed. */
@@ -163,7 +166,7 @@ class Reminder : BroadcastReceiver() {
         val marks = Store.highlights(c).size
         if (saved + marks == 0) return
         channel(c, nm)
-        val main = Intent(c, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val main = Intent(c, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).putExtra(FROM, "weekly")
         val tap = PendingIntent.getActivities(c, 12, arrayOf(main, Intent(c, YouActivity::class.java)), PendingIntent.FLAG_IMMUTABLE)
         val text = c.getString(R.string.notify_weekly_text, saved, marks)
         nm.notify(

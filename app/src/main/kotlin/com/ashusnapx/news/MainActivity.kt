@@ -5,6 +5,7 @@ import android.animation.ValueAnimator
 import android.Manifest
 import android.app.Activity
 import android.app.ActivityOptions
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -100,6 +101,7 @@ class MainActivity : Activity() {
                 if (Feed.current?.quiz.isNullOrEmpty() && Store.due(this@MainActivity).isEmpty()) return@setOnClickListener
                 it.haptic()
                 it.bounce()
+                Analytics.log(this@MainActivity, "quiz_open", "from" to "dock")
                 startActivity(Intent(this@MainActivity, QuizActivity::class.java))
             }
         }
@@ -119,7 +121,11 @@ class MainActivity : Activity() {
         greetTitle = header.findViewById(R.id.greetTitle)
         greetSub = header.findViewById(R.id.greetSub)
         header.findViewById<View>(R.id.greetRow).setOnLongClickListener { it.haptic(); welcome(); true } // change the name
+        val returning = profile.getBoolean("askedNotify", false)
         if (!profile.contains("name")) welcome() else askNotifications()
+        if (returning) askStats() // one prompt per launch: notifications first, stats on a later open
+        Analytics.log(this, "app_open", "streak" to Store.streak(this))
+        intent.getStringExtra(Reminder.FROM)?.let { Analytics.log(this, "notification_open", "slot" to it) }
         Reminder.schedule(this)
 
         tab = savedInstanceState?.getString("tab") ?: tab
@@ -170,6 +176,7 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        Analytics.flush(this)
         carousel.pause()
         super.onStop()
     }
@@ -208,7 +215,7 @@ class MainActivity : Activity() {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (pulling) {
                     pulling = false
-                    if (armed) load()
+                    if (armed) { Analytics.log(this, "refresh"); load() }
                     else refresh.animate().translationY(-64.dp.toFloat()).alpha(0f).setDuration(200)
                     return@setOnTouchListener true
                 }
@@ -270,6 +277,7 @@ class MainActivity : Activity() {
     private fun selectTab(kind: String, animate: Boolean = true) {
         if (animate && kind == tab) return
         tab = kind
+        if (animate) Analytics.log(this, "tab", "tab" to kind)
         navItems.forEach { (k, item) -> paintNav(item, k == kind, animate, if (k == "mains") R.drawable.ic_mains_on else R.drawable.ic_prelims_on) }
         if (!animate) return
         navItems.getValue(kind).bounce()
@@ -343,6 +351,7 @@ class MainActivity : Activity() {
                 if (empty) return@newPill Toast.makeText(this, getString(R.string.gs_none, p), Toast.LENGTH_SHORT).show()
                 if (paperFilter == p) return@newPill
                 paperFilter = p
+                Analytics.log(this, "gs_filter", "paper" to (p ?: "all"))
                 filter()
                 list.setSelection(0)
             }.apply {
@@ -395,6 +404,18 @@ class MainActivity : Activity() {
         val streak = Store.streak(this).let { if (it > 0) "  ·  🔥 $it" else "" }
         greetSub.text = if (all.isEmpty()) date + streak
             else getString(R.string.greet_sub, date + streak, if (unread == 0) getString(R.string.greet_done) else getString(R.string.unread, unread))
+    }
+
+    /** Consent for anonymous stats: asked once, only when analytics is configured, never again whatever the answer. */
+    private fun askStats() {
+        if (!BuildConfig.GA_ID.isNotEmpty() || Analytics.asked(this)) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.stats_title)
+            .setMessage(R.string.stats_body)
+            .setPositiveButton(R.string.stats_yes) { _, _ -> Analytics.setEnabled(this, true); Analytics.log(this, "stats_on") }
+            .setNegativeButton(R.string.stats_no) { _, _ -> Analytics.setEnabled(this, false) }
+            .setCancelable(false)
+            .show()
     }
 
     /** Asked once, after the name, never again whatever the answer. */
@@ -498,7 +519,9 @@ class MainActivity : Activity() {
         card.setOnLongClickListener {
             it.haptic()
             it.bounce()
-            Toast.makeText(this, if (Store.toggleSave(this, lead)) R.string.saved_toast else R.string.unsaved_toast, Toast.LENGTH_SHORT).show()
+            val now = Store.toggleSave(this, lead)
+            Analytics.log(this, if (now) "save" else "unsave", "from" to "feed")
+            Toast.makeText(this, if (now) R.string.saved_toast else R.string.unsaved_toast, Toast.LENGTH_SHORT).show()
             true
         }
     }
@@ -512,6 +535,7 @@ class MainActivity : Activity() {
 
     private fun open(card: View, image: ImageView, lead: Item) {
         card.haptic()
+        Analytics.log(this, "article_open", "source" to lead.source, "kind" to lead.kind, "gs" to lead.gs.joinToString(","), "from" to "feed")
         val hero = if (image.isShown && image.drawable != null) {
             ActivityOptions.makeSceneTransitionAnimation(this, image, "hero").toBundle()
         } else null

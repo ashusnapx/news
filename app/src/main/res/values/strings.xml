@@ -89,6 +89,11 @@
     <string name="saved_empty">Long-press a story on the feed, or tap Save in an article. Saved stories stay after the day rolls over.</string>
     <string name="highlights_label">HIGHLIGHTS  ·  %1$d</string>
     <string name="highlights_empty">Select text in an article and tap Highlight. Long-press a highlight here to remove it.</string>
+    <string name="stats_title">Help improve UPSC Today?</string>
+    <string name="stats_body">Share anonymous usage stats: which screens and features get used, quiz scores, reminders tapped. Never your name, your highlights, or anything that identifies your phone. You can turn this off any time in You.</string>
+    <string name="stats_yes">Share stats</string>
+    <string name="stats_no">No thanks</string>
+    <string name="stats_switch">Share anonymous usage stats</string>
     <string name="clear_all">Clear all</string>
     <string name="removed_undo">Removed  ·  Undo</string>
     <string name="delete_saved">Remove this saved story</string>
@@ -121,7 +126,7 @@
     <string name="made_by">Made by Ashutosh Kumar</string>
     <string name="author">Ashutosh Kumar</string>
     <string name="author_line">Generative AI Engineer  ·  Bengaluru</string>
-    <string name="tagline">No ads. No tracking. Just today’s news, from the coachings you trust.</string>
+    <string name="tagline">No ads. Anonymous usage stats only if you allow them. Just today’s news, from the coachings you trust.</string>
     <string name="story_next">Next story</string>
     <string name="story_prev">Previous story</string>
     <string name="reads">%1$d of %2$d read</string>

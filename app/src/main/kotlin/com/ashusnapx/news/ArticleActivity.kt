@@ -119,15 +119,20 @@ class ArticleActivity : Activity() {
         paperBtn.setOnClickListener { it.haptic(); togglePaper() }
         listenBtn = findViewById(R.id.listen)
         saveBtn = findViewById(R.id.save)
-        listenBtn.setOnClickListener { it.haptic(); if (speaking) stopListening() else listen() }
+        listenBtn.setOnClickListener { it.haptic(); if (speaking) stopListening() else { Analytics.log(this, "listen"); listen() } }
         saveBtn.setOnClickListener {
             it.haptic()
             it.bounce()
             val now = Store.toggleSave(this, story[selected])
+            Analytics.log(this, if (now) "save" else "unsave", "from" to "article")
             Toast.makeText(this, if (now) R.string.saved_toast else R.string.unsaved_toast, Toast.LENGTH_SHORT).show()
             paintSave()
         }
-        findViewById<View>(R.id.share).setOnClickListener { it.haptic(); Share.story(this, story[selected]) }
+        findViewById<View>(R.id.share).setOnClickListener {
+            it.haptic()
+            Analytics.log(this, "share", "what" to "story")
+            Share.story(this, story[selected])
+        }
         val nextWrap = findViewById<View>(R.id.nextWrap)
         val back = findViewById<View>(R.id.back)
         hero.layoutParams.height = minOf(300.dp, windowManager.currentWindowMetrics.bounds.height() * 2 / 5) // landscape, folds
@@ -222,6 +227,7 @@ class ArticleActivity : Activity() {
             return
         }
         switched = true
+        Analytics.log(this, "swipe_story", "direction" to if (step > 0) "next" else "previous")
         scroll.haptic()
         scroll.animate().translationX(-step * w).alpha(0f).setDuration(150).setInterpolator(AccelerateInterpolator()).withEndAction {
             open(target)
@@ -255,6 +261,19 @@ class ArticleActivity : Activity() {
     private fun View.hit(e: MotionEvent): Boolean {
         val at = IntArray(2).also(::getLocationOnScreen)
         return e.rawX >= at[0] && e.rawX <= at[0] + width && e.rawY >= at[1] && e.rawY <= at[1] + height
+    }
+
+    private var openedAt = 0L
+
+    override fun onResume() {
+        super.onResume()
+        openedAt = System.currentTimeMillis()
+    }
+
+    override fun onPause() {
+        Analytics.log(this, "read_time", "seconds" to (System.currentTimeMillis() - openedAt) / 1000, "source" to story[selected].source)
+        Analytics.flush(this)
+        super.onPause()
     }
 
     override fun onDestroy() {
@@ -421,6 +440,7 @@ blockquote{margin:1.2em 0;padding:2px 0 2px 16px;border-left:3px solid $src;font
         val y = scroll.scrollY
         scroll.animate().alpha(0f).setDuration(140).withEndAction {
             paper = !paper
+            Analytics.log(this, "paper_mode", "on" to paper.toString())
             prefs.edit().putBoolean("paper", paper).apply()
             surface()
             show(story[selected])
@@ -560,6 +580,7 @@ blockquote{margin:1.2em 0;padding:2px 0 2px 16px;border-left:3px solid $src;font
                 Toast.makeText(this, R.string.highlight_failed, Toast.LENGTH_SHORT).show()
             } else {
                 Store.highlight(this, text, item)
+                Analytics.log(this, "highlight", "length" to text.length)
                 body.haptic()
                 Toast.makeText(this, R.string.highlighted, Toast.LENGTH_SHORT).show()
             }
@@ -572,7 +593,9 @@ blockquote{margin:1.2em 0;padding:2px 0 2px 16px;border-left:3px solid $src;font
         .fold(item.html) { html, h -> TextUtils.htmlEncode(h.text).let { t -> html.replaceFirst(t, "<mark>$t</mark>") } }
 
     private fun viewImage(url: String) {
-        if (url.startsWith("https://")) startActivity(Intent(this, ImageActivity::class.java).putExtra(ImageActivity.URL, url))
+        if (!url.startsWith("https://")) return
+        Analytics.log(this, "image_open")
+        startActivity(Intent(this, ImageActivity::class.java).putExtra(ImageActivity.URL, url))
     }
 
     private fun statusIcons(onSurface: Boolean) {

@@ -11,6 +11,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import com.ashusnapx.news.Store.goal
@@ -28,21 +29,28 @@ class YouActivity : Activity() {
         back.setOnClickListener { it.haptic(); finish() }
         ring.setOnClickListener {
             it.haptic()
+            Analytics.log(this, "goal_change")
             goal = listOf(5, 10, 15, 20).let { g -> g[(g.indexOf(goal) + 1) % g.size] } // 5 -> 10 -> 15 -> 20 -> 5
             render()
             ring.bounce()
         }
         findViewById<View>(R.id.revise).setOnClickListener {
             it.haptic()
+            Analytics.log(this, "revise_open")
             startActivity(Intent(this, QuizActivity::class.java).putExtra(QuizActivity.REVISE, true))
         }
         findViewById<View>(R.id.savedClear).setOnClickListener {
             it.haptic()
-            confirm(R.string.clear_saved_title) { Store.clearSaved(this); render() }
+            confirm(R.string.clear_saved_title) { Store.clearSaved(this); Analytics.log(this, "clear_all", "what" to "saved"); render() }
         }
         findViewById<View>(R.id.highlightsClear).setOnClickListener {
             it.haptic()
-            confirm(R.string.clear_highlights_title) { Store.clearHighlights(this); render() }
+            confirm(R.string.clear_highlights_title) { Store.clearHighlights(this); Analytics.log(this, "clear_all", "what" to "highlights"); render() }
+        }
+        findViewById<Switch>(R.id.stats).apply {
+            visibility = if (BuildConfig.GA_ID.isNotEmpty()) View.VISIBLE else View.GONE
+            isChecked = Analytics.enabled(this@YouActivity)
+            setOnCheckedChangeListener { v, on -> v.haptic(); Analytics.setEnabled(this@YouActivity, on) }
         }
         edgeToEdge { i ->
             val side = 20.dp + gutter(windowWidth - i.left - i.right, 680.dp)
@@ -58,6 +66,7 @@ class YouActivity : Activity() {
     }
 
     override fun onStop() {
+        Analytics.flush(this)
         Store.pruneKept(this) // past the undo window: drop stored stories no highlight points at
         super.onStop()
     }

@@ -31,6 +31,21 @@ adb install app/build/outputs/apk/release/app-release.apk
 
 Needs JDK 17+ and Android SDK 37.
 
+## Usage stats (optional)
+
+Off unless configured, and even then only after the reader says yes (a one-time prompt, and a switch in You).
+GA4 Measurement Protocol over HTTPS, no SDK. Sent: screens and features used, quiz results, reminders tapped.
+Never sent: the reader's name, highlighted text, or any device identifier (a random per-install id is used).
+
+1. Google Analytics → Admin → create a GA4 property → Data streams → **Web** stream (any URL).
+2. Copy its Measurement ID (`G-…`); in the stream, Measurement Protocol API secrets → create one.
+3. Put both in `~/.gradle/gradle.properties` (outside the repo, never committed):
+   ```
+   gaId=G-XXXXXXXXXX
+   gaSecret=xxxxxxxxxxxxxxxx
+   ```
+4. Rebuild. Events show in GA → Reports → Realtime within a minute.
+
 ## Tests
 
 ```sh

@@ -160,6 +160,7 @@ class QuizActivity : Activity() {
         if (intent.getBooleanExtra(REVISE, false) && reviseSet >= 0) set = reviseSet
         findViewById<View>(R.id.share).setOnClickListener {
             it.haptic()
+            Analytics.log(this, "share", "what" to "score")
             Share.score(this, fmt(score()).removePrefix("+"), quiz.size * 2, outcomes.count { o -> o == RIGHT }, quiz.size)
         }
         val saved = savedInstanceState?.getIntArray("outcomes")
@@ -205,7 +206,13 @@ class QuizActivity : Activity() {
         findViewById<TextView>(R.id.start).text = getString(R.string.start_set, resources.getQuantityString(R.plurals.questions, quiz.size, quiz.size))
     }
 
+    override fun onStop() {
+        Analytics.flush(this)
+        super.onStop()
+    }
+
     private fun begin() {
+        Analytics.log(this, "quiz_start", "size" to quiz.size, "revision" to (set == reviseSet).toString())
         outcomes = IntArray(quiz.size) { PENDING }
         index = 0
         streak = 0
@@ -291,6 +298,7 @@ class QuizActivity : Activity() {
             else -> WRONG
         }
         streak = if (outcomes[index] == RIGHT) streak + 1 else 0
+        Analytics.log(this, "quiz_answer", "result" to when (outcomes[index]) { RIGHT -> "right"; WRONG -> "wrong"; else -> "skip" })
         // The revision deck learns from every answer: wrong or skipped comes back tomorrow, right moves it along.
         if (set == reviseSet) Store.reviewed(this, q, outcomes[index] == RIGHT)
         else if (outcomes[index] != RIGHT) Store.missed(this, q)
@@ -388,6 +396,8 @@ class QuizActivity : Activity() {
     private fun result() {
         pacer?.cancel()
         Reminder.quizDone(this) // no afternoon nudge once today's quiz is done
+        Analytics.log(this, "quiz_complete", "size" to quiz.size, "marks" to score().toDouble(),
+            "right" to outcomes.count { it == RIGHT }, "wrong" to outcomes.count { it == WRONG }, "skipped" to outcomes.count { it == SKIPPED })
         play.visibility = View.GONE
         actions.visibility = View.GONE
         val right = outcomes.count { it == RIGHT }
