@@ -15,8 +15,9 @@ import java.time.ZoneId
 
 /**
  * Three nudges a day, each skipped when it has nothing worth saying: the morning brief, the afternoon quiz, the
- * evening "stories left". Never within two hours of the app being opened. Local alarms, no server; inexact, so
- * the system batches them with other wake-ups instead of draining the battery.
+ * evening "stories left". Never within two hours of the app being opened. Local alarms, no server: one-shot,
+ * within a 30-minute window the system may batch, re-armed after each fire. (Inexact *repeating* alarms got an
+ * 18-hour window on a daily interval, so "14:00" could land the next morning.)
  */
 class Reminder : BroadcastReceiver() {
     companion object {
@@ -24,14 +25,14 @@ class Reminder : BroadcastReceiver() {
         private const val CHANNEL = "daily"
         private val SLOTS = listOf("morning" to LocalTime.of(8, 0), "quiz" to LocalTime.of(14, 0), "evening" to LocalTime.of(20, 30))
 
-        /** Idempotent: same request codes replace the previous alarms. Called on app open and after reboot. */
+        /** Idempotent: same request codes replace the previous alarms. Called on app open, after reboot, and after each fire. */
         fun schedule(c: Context) {
             val alarms = c.getSystemService(AlarmManager::class.java)
             SLOTS.forEachIndexed { code, (slot, at) ->
                 var next = LocalDateTime.of(LocalDate.now(), at)
                 if (next.isBefore(LocalDateTime.now())) next = next.plusDays(1)
                 val millis = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                alarms.setInexactRepeating(AlarmManager.RTC, millis, AlarmManager.INTERVAL_DAY, broadcast(c, code, slot))
+                alarms.setWindow(AlarmManager.RTC, millis, 30 * 60_000L, broadcast(c, code, slot))
             }
         }
 
@@ -56,6 +57,7 @@ class Reminder : BroadcastReceiver() {
             try {
                 remind(c, slot)
             } finally {
+                schedule(c) // next one: tomorrow, same time
                 done.finish()
             }
         }.start()
