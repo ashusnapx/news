@@ -45,6 +45,10 @@ scrape.NOW = scrape.NOW.astimezone(scrape.timezone.utc)
 assert lq["answer"] == 1 and lq["options"] == ["1 only", "2 only"], lq
 assert "<p>1. One.</p><p>2. Two.</p>" in lq["q"] and "<p>Which are correct?</p>" in lq["q"], lq["q"]
 assert lq["why"] == [["p", 0, "Statement 2 holds."]], lq["why"]
+assert scrape.gs("UPSC Syllabus: Gs Paper 2- Health") == ["GS2"]
+assert scrape.gs("Body text", tags="Tags: GS Paper - 3 Space Technology") == ["GS3"]
+assert scrape.gs("Kittur Fort. The Karnataka government will restore the fort and its heritage.") == ["GS1"]
+assert scrape.gs("Nothing to see here.") == []
 print("ok")
 
 quiz_page = """<li class="wpProQuiz_listItem"><div class="wpProQuiz_question_text"><p>Consider the following statements about Phuket Island:</p>

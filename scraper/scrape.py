@@ -46,13 +46,39 @@ def excerpt(text):
     return text[m.end() if m else 0:][:220]
 
 
-def item(source, kind, title, link, body, image=None):
+GS_MARK = re.compile(r"\bGS\s*(?:Paper)?\s*[-–—:]?\s*([1-4])\b", re.I)
+# Keyword fallback when a coaching does not say which paper: a coarse map of the UPSC syllabus.
+GS_WORDS = {
+    "GS1": "history ancient medieval temple dynasty fort art culture heritage festival archaeolog geography cyclone earthquake "
+           "monsoon river lake mountain glacier ocean island society women population urban tribal caste mapping",
+    "GS2": "constitution court supreme judiciary parliament bill act governance scheme policy election rights ministry "
+           "bilateral treaty summit foreign diplomat health education welfare federal panchayat magistrate polity",
+    "GS3": "economy gdp inflation rbi bank budget tax trade export investment agricultur farm environment climate wildlife "
+           "sanctuary reserve species pollution biodiversity coral technology space isro satellite cyber defence security "
+           "energy fuel ethanol infrastructure disaster missile semiconductor ai",
+    "GS4": "ethics integrity moral values empathy probity",
+}
+
+
+def gs(text, tags=""):
+    """Which GS papers a story serves: the coaching's own marker if it gives one, else syllabus keywords."""
+    marked = sorted({f"GS{n}" for n in GS_MARK.findall(tags + " " + text[:800])})
+    if marked:
+        return marked
+    words = re.findall(r"[a-z]+", text[:600].lower())
+    score = {p: sum(any(w.startswith(k) for k in ks.split()) for w in words) for p, ks in GS_WORDS.items()}
+    best = max(score.values())
+    return [p for p, v in score.items() if v == best] if best else []
+
+
+def item(source, kind, title, link, body, image=None, tags=""):
     body = JUNK.sub("", body).replace('src="http://', 'src="https://').strip()
     text = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", body))).strip()
     img = re.search(r'<img[^>]+src="([^"]+)"', body)
     return {
         "source": source,
         "kind": kind,
+        "gs": gs(html.unescape(re.sub(r"<[^>]+>", "", title)) + ". " + text, tags),
         "title": html.unescape(re.sub(r"<[^>]+>", "", title)).strip(),
         "link": link,
         "image": image or (img and urljoin(link, img.group(1))) or "",
@@ -92,7 +118,8 @@ def drishti(source):
         if head:
             body = block.split("<!-- #end tags area -->")[-1].split('<div class="banner-static">')[0]
             body = re.sub(r'<div class="social-shares">.*?</div>\s*</div>', "", body, count=1, flags=re.S)
-            yield item(source, "mains", head.group(2), head.group(1), body)  # analysis pieces, written for mains
+            tags = plain((re.search(r'<div class="tags-new">(.*?)</div>', block, re.S) or re.match("", "")).group(1) or "")
+            yield item(source, "mains", head.group(2), head.group(1), body, tags=tags)  # analysis pieces, written for mains
 
 
 # name, fetcher, args. WordPress category ids pick the per-topic news posts (not quizzes or daily mega-posts).
