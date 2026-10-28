@@ -37,6 +37,12 @@ def fetch(url):
 JUNK = re.compile(r"<(script|style|iframe|form|noscript|svg)\b.*?</\1>|<!--.*?-->", re.S | re.I)
 
 
+def excerpt(text):
+    """Skip the "Source: TH Subject: Mapping Context:" header Insights-style notes open with."""
+    m = re.search(r"\bContext\s*:\s*", text[:300])
+    return text[m.end() if m else 0:][:220]
+
+
 def item(source, kind, title, link, body, image=None):
     body = JUNK.sub("", body).replace('src="http://', 'src="https://').strip()
     text = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", body))).strip()
@@ -47,7 +53,7 @@ def item(source, kind, title, link, body, image=None):
         "title": html.unescape(re.sub(r"<[^>]+>", "", title)).strip(),
         "link": link,
         "image": image or (img and urljoin(link, img.group(1))) or "",
-        "excerpt": text[:220],
+        "excerpt": excerpt(text),
         "min": max(1, round(len(text.split()) / 200)),
         "html": body,
     }
@@ -115,10 +121,19 @@ def questions(source, link, page):
         if not (qid and text and qid.group(1) in correct and len(options) > 1):
             continue
         why = why.group(1) if why else ""
-        why = re.sub(r'<span class="wpProQuiz_respone_span">.*?</span>\s*(<br\s*/?>)?|<p>\s*<strong>\s*Answer:.*?</p>|<img[^>]*>',
-                     "", why, flags=re.S)
+        why = re.sub(r'<span class="wpProQuiz_respone_span">.*?</span>\s*(<br\s*/?>)?|<p>\s*<strong>\s*Answer:.*?</p>|<img[^>]*>'
+                     r'|<p>\s*<strong>\s*Explanation\s*:?\s*</strong>\s*</p>', "", why, flags=re.S)
+        why, more = split(JUNK.sub("", why).strip())
         yield {"source": source, "link": link, "q": numbered(text.group(1).strip()), "options": options,
-               "answer": correct[qid.group(1)], "why": JUNK.sub("", why).strip()}
+               "answer": correct[qid.group(1)], "why": why, "more": more}
+
+
+def split(why):
+    """The reason first, the background later: cut at the first sub-heading ("About Phuket Island:", "History")."""
+    cut = re.search(r"<p>\s*<strong>[^<]{3,80}</strong>\s*</p>", why)
+    if cut and plain(why[:cut.start()]):
+        return why[:cut.start()].strip(), why[cut.start():].strip()
+    return why, ""
 
 
 def plain(fragment):
