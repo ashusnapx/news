@@ -66,6 +66,7 @@ class YouActivity : Activity() {
     }
 
     override fun onStop() {
+        Analytics.send()
         Store.pruneKept(this) // past the undo window: drop stored stories no highlight points at
         super.onStop()
     }

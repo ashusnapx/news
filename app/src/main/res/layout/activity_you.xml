@@ -195,6 +195,15 @@
                 android:textColor="@color/ink"
                 android:textSize="14sp"
                 android:visibility="gone" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:lineSpacingExtra="2dp"
+                android:text="@string/stats_note"
+                android:textColor="@color/ink2"
+                android:textSize="12sp" />
         </LinearLayout>
     </ScrollView>
 

@@ -93,7 +93,8 @@
     <string name="stats_body">Share anonymous usage stats: what you read and for how long, how you use the features and the quiz, which reminders you open, and your phone model, Android version and country. Never your name, your highlights, or your phone’s IDs. Turn it off any time in You.</string>
     <string name="stats_yes">Share stats</string>
     <string name="stats_no">No thanks</string>
-    <string name="stats_switch">Share anonymous usage stats</string>
+    <string name="stats_switch">Share detailed usage stats</string>
+    <string name="stats_note">Everyone sends anonymous counts of which features are used, with no ID and nothing about your phone, so they can’t be traced to you. Detailed stats add an app-install ID and your phone model, and are sent only if this is on.</string>
     <string name="clear_all">Clear all</string>
     <string name="removed_undo">Removed  ·  Undo</string>
     <string name="delete_saved">Remove this saved story</string>
@@ -126,7 +127,7 @@
     <string name="made_by">Made by Ashutosh Kumar</string>
     <string name="author">Ashutosh Kumar</string>
     <string name="author_line">Generative AI Engineer  ·  Bengaluru</string>
-    <string name="tagline">No ads. Anonymous usage stats only if you allow them. Just today’s news, from the coachings you trust.</string>
+    <string name="tagline">No ads, no login. Anonymous feature counts help improve the app; detailed stats only if you allow them.</string>
     <string name="story_next">Next story</string>
     <string name="story_prev">Previous story</string>
     <string name="reads">%1$d of %2$d read</string>

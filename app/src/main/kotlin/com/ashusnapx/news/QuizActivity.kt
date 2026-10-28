@@ -208,6 +208,7 @@ class QuizActivity : Activity() {
     }
 
     override fun onStop() {
+        Analytics.send()
         super.onStop()
     }
 

@@ -282,6 +282,7 @@ class ArticleActivity : Activity() {
 
     override fun onPause() {
         readStat()
+        Analytics.send()
         super.onPause()
     }
 

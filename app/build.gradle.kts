@@ -13,13 +13,21 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        // Anonymous counters (a GA4 web stream), off unless both are set in ~/.gradle/gradle.properties:
+        //   countId=G-XXXXXXX   countSecret=xxxxxxxx
+        buildConfigField("String", "COUNT_ID", "\"${providers.gradleProperty("countId").getOrElse("")}\"")
+        buildConfigField("String", "COUNT_SECRET", "\"${providers.gradleProperty("countSecret").getOrElse("")}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // shortcut: signed with the debug key for personal sideloading; make a real keystore before any store release
             signingConfig = signingConfigs.getByName("debug")
         }

@@ -3,9 +3,20 @@ package com.ashusnapx.news
 import android.content.Context
 import android.os.Bundle
 import com.google.firebase.analytics.FirebaseAnalytics
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.UUID
+import java.util.concurrent.Executors
 
 /**
- * Anonymous usage stats through Google Analytics for Firebase, only after the reader says yes. Collection is off
+ * Two streams from one call. Counts, for everyone: the event and its plain parameters, under a fresh random id per
+ * batch, so nothing links one batch to the next or to a person; no install id, no device details. Detail, only
+ * after the reader says yes: the same events through Google Analytics for Firebase, with its install id and
+ * device context.
+ *
+ * Firebase detail: only after the reader says yes. Collection is off
  * in the manifest until then, and never uses the advertising ID or Android ID. Events say what was used, never
  * who: no name, no highlighted text.
  */
@@ -47,6 +58,7 @@ object Analytics {
 
     /** Values are plain strings and numbers only; Firebase caps names at 40 characters and values at 100. */
     fun log(c: Context, name: String, vararg params: Pair<String, Any>) {
+        count(name, params)
         if (!enabled(c)) return
         fa(c).logEvent(name, Bundle().apply {
             params.forEach { (k, v) ->
@@ -58,5 +70,47 @@ object Analytics {
                 }
             }
         })
+    }
+
+    // --- Anonymous counts: GA4 Measurement Protocol on a web stream, plain HTTPS. ---
+
+    private val io = Executors.newSingleThreadExecutor()
+    private val pending = mutableListOf<JSONObject>()
+    private val counting get() = BuildConfig.COUNT_ID.isNotEmpty() && BuildConfig.COUNT_SECRET.isNotEmpty()
+
+    private fun count(name: String, params: Array<out Pair<String, Any>>) {
+        if (!counting) return
+        val p = JSONObject().put("engagement_time_msec", 1)
+        params.forEach { (k, v) -> p.put(k, if (v is Number) v else v.toString().take(100)) }
+        synchronized(pending) {
+            pending += JSONObject().put("name", name).put("params", p)
+            if (pending.size >= 20) send()
+        }
+    }
+
+    /** Send what is counted, called as screens stop. A new random client id per request, used once, never stored. */
+    fun send() {
+        if (!counting) return
+        val batch = synchronized(pending) { pending.toList().also { pending.clear() } }
+        if (batch.isEmpty()) return
+        io.execute {
+            batch.chunked(25).forEach { events ->
+                runCatching {
+                    val url = URL("https://www.google-analytics.com/mp/collect?measurement_id=${BuildConfig.COUNT_ID}&api_secret=${BuildConfig.COUNT_SECRET}")
+                    (url.openConnection() as HttpURLConnection).run {
+                        requestMethod = "POST"
+                        doOutput = true
+                        connectTimeout = 10_000
+                        readTimeout = 10_000
+                        setRequestProperty("Content-Type", "application/json")
+                        val body = JSONObject().put("client_id", UUID.randomUUID().toString()).put("non_personalized_ads", true)
+                            .put("events", JSONArray(events))
+                        outputStream.use { it.write(body.toString().toByteArray()) }
+                        responseCode // fire and forget: a lost count costs the reader nothing
+                        disconnect()
+                    }
+                }
+            }
+        }
     }
 }

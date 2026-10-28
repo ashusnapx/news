@@ -157,6 +157,7 @@ class Reminder : BroadcastReceiver() {
         }
         nm.notify(SLOTS.indexOfFirst { it.first == slot }, builder.build())
         Analytics.log(c, "notification_shown", "slot" to slot, "slides" to slides.size)
+        Analytics.send()
     }
 
     /** Sunday's nudge to revise and clear; nothing saved, nothing sent. Opens the You tab over the feed. */

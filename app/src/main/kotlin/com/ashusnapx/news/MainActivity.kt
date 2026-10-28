@@ -177,6 +177,7 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        Analytics.send()
         carousel.pause()
         super.onStop()
     }
