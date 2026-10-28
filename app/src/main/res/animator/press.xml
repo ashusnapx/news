@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cards sink slightly under the finger and spring back on release. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <set>
+            <objectAnimator android:duration="120" android:propertyName="scaleX" android:valueTo="0.97" android:valueType="floatType" android:interpolator="@android:interpolator/decelerate_quad" />
+            <objectAnimator android:duration="120" android:propertyName="scaleY" android:valueTo="0.97" android:valueType="floatType" android:interpolator="@android:interpolator/decelerate_quad" />
+        </set>
+    </item>
+    <item>
+        <set>
+            <objectAnimator android:duration="260" android:propertyName="scaleX" android:valueTo="1" android:valueType="floatType" android:interpolator="@android:anim/overshoot_interpolator" />
+            <objectAnimator android:duration="260" android:propertyName="scaleY" android:valueTo="1" android:valueType="floatType" android:interpolator="@android:anim/overshoot_interpolator" />
+        </set>
+    </item>
+</selector>

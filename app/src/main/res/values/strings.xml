@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">UPSC Today</string>
+    <string name="brief">Daily Brief</string>
+    <string name="today">TODAY · %1$s</string>
+    <string name="refresh">Refresh</string>
+    <string name="back">Back</string>
+    <string name="loading">Fetching today’s stories…</string>
+    <string name="offline">Can’t reach the server. Tap refresh to try again.</string>
+    <string name="empty">Nothing published yet today. Coachings usually post through the day.</string>
+    <string name="summary">%1$s · %2$s · updated %3$s</string>
+    <plurals name="stories">
+        <item quantity="one">%d story</item>
+        <item quantity="other">%d stories</item>
+    </plurals>
+    <plurals name="coachings">
+        <item quantity="one">%d coaching</item>
+        <item quantity="other">%d coachings</item>
+    </plurals>
+    <string name="min_read">%1$d min read</string>
+    <string name="meta">%1$s · %2$d min read · Open original ↗</string>
+</resources>
