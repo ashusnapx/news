@@ -28,8 +28,8 @@ jobs:
           mkdir -p ../site
           python3 scrape.py ../site/news.json
       # Deployed as a Pages artifact, not committed: no repo history bloat from daily content.
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

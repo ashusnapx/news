@@ -7,6 +7,7 @@ import html
 import json
 import re
 import sys
+import time
 from datetime import datetime, timedelta
 from itertools import zip_longest
 from urllib.parse import urljoin
@@ -17,9 +18,16 @@ IST = ZoneInfo("Asia/Kolkata")
 TODAY = datetime.now(IST).date()
 
 
-def get(url):
-    with urlopen(Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as r:
-        return r.read().decode("utf-8", "replace")
+def get(url, tries=3):
+    """Retries: from GitHub's runners these sites sometimes stall a request that works fine a minute later."""
+    for attempt in range(tries):
+        try:
+            with urlopen(Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=60) as r:
+                return r.read().decode("utf-8", "replace")
+        except OSError:
+            if attempt == tries - 1:
+                raise
+            time.sleep(10 * (attempt + 1))
 
 
 JUNK = re.compile(r"<(script|style|iframe|form|noscript|svg)\b.*?</\1>|<!--.*?-->", re.S | re.I)
