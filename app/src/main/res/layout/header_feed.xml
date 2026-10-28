@@ -3,72 +3,13 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingStart="4dp"
     android:paddingTop="4dp"
-    android:paddingEnd="0dp"
-    android:paddingBottom="18dp">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/label"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:letterSpacing="0.14"
-            android:textColor="@color/accent"
-            android:textFontWeight="700"
-            android:textSize="11.5sp" />
-
-        <ImageButton
-            android:id="@+id/refresh"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/round_btn"
-            android:contentDescription="@string/refresh"
-            android:src="@drawable/ic_refresh" />
-    </LinearLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:accessibilityHeading="true"
-        android:fontFamily="@font/instrument_serif"
-        android:includeFontPadding="false"
-        android:text="@string/brief"
-        android:textColor="@color/ink"
-        android:textSize="52sp" />
-
-    <TextView
-        android:id="@+id/state"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="36dp"
-        android:fontFamily="@font/instrument_serif"
-        android:textColor="@color/ink"
-        android:textSize="30sp"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/summary"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:accessibilityLiveRegion="polite"
-        android:lineSpacingExtra="2dp"
-        android:textColor="@color/ink2"
-        android:textSize="14sp" />
+    android:paddingBottom="16dp">
 
     <!-- Greeting on the left, today's quiz on the right; equal heights. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="22dp"
         android:baselineAligned="false"
         android:orientation="horizontal">
 
@@ -83,18 +24,46 @@
             android:padding="18dp"
             android:stateListAnimator="@animator/press">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/greetEmoji"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:importantForAccessibility="no"
+                    android:textSize="24sp" />
+
+                <ImageButton
+                    android:id="@+id/refresh"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/refresh"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_refresh" />
+            </LinearLayout>
+
             <TextView
-                android:id="@+id/greetEmoji"
+                android:id="@+id/label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:importantForAccessibility="no"
-                android:textSize="26sp" />
+                android:layout_marginTop="8dp"
+                android:letterSpacing="0.12"
+                android:textColor="@color/accent"
+                android:textFontWeight="700"
+                android:textSize="11sp" />
 
             <TextView
                 android:id="@+id/greetHello"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="2dp"
                 android:textColor="@color/ink2"
                 android:textFontWeight="500"
                 android:textSize="13sp" />
@@ -175,11 +144,35 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Only when there is something to say: first load, offline, nothing published. -->
+    <TextView
+        android:id="@+id/state"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:layout_marginStart="4dp"
+        android:fontFamily="@font/instrument_serif"
+        android:textColor="@color/ink"
+        android:textSize="30sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/summary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="4dp"
+        android:accessibilityLiveRegion="polite"
+        android:lineSpacingExtra="2dp"
+        android:textColor="@color/ink2"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/tabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="22dp"
+        android:layout_marginTop="18dp"
         android:background="@drawable/track_strong"
         android:orientation="horizontal"
         android:padding="4dp"

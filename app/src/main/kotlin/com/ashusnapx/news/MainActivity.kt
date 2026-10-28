@@ -151,7 +151,10 @@ class MainActivity : Activity() {
         label.text = getString(R.string.today, DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(LocalDate.now(IST)).uppercase())
         greet()
         spinner.start()
-        if (shown == null) summary.setText(R.string.loading)
+        if (shown == null) {
+            summary.setText(R.string.loading)
+            summary.visibility = View.VISIBLE
+        }
         Thread {
             val result = runCatching { Feed.fetch(cacheDir) }
             runOnUiThread {
@@ -163,6 +166,7 @@ class MainActivity : Activity() {
                     state.setText(R.string.state_offline)
                     state.visibility = View.VISIBLE
                     summary.setText(R.string.offline)
+                    summary.visibility = View.VISIBLE
                 }
             }
         }.start()
@@ -170,15 +174,11 @@ class MainActivity : Activity() {
 
     private fun show(feed: Feed) {
         Feed.current = feed
-        val coachings = feed.stories.flatten().distinctBy { it.source }.size
+        val empty = feed.stories.isEmpty()
         state.setText(R.string.state_empty)
-        state.visibility = if (feed.stories.isEmpty()) View.VISIBLE else View.GONE
-        summary.text = if (feed.stories.isEmpty()) getString(R.string.empty) else getString(
-            R.string.summary,
-            resources.getQuantityString(R.plurals.stories, feed.stories.size, feed.stories.size),
-            resources.getQuantityString(R.plurals.coachings, coachings, coachings),
-            feed.updated.substring(11, 16),
-        )
+        summary.setText(R.string.empty)
+        state.visibility = if (empty) View.VISIBLE else View.GONE
+        summary.visibility = state.visibility
         val n = feed.quiz.size
         quizCard.visibility = if (n == 0) View.GONE else View.VISIBLE
         quizTitle.text = resources.getQuantityString(R.plurals.questions, n, n)

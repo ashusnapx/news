@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">UPSC Today</string>
-    <string name="brief">Daily Brief</string>
-    <string name="today">TODAY · %1$s</string>
+    <string name="today">%1$s</string>
     <string name="refresh">Refresh</string>
     <string name="back">Back</string>
     <string name="loading">Fetching today’s stories…</string>
@@ -87,14 +86,9 @@
     <string name="hello_reader">aspirant</string>
     <string name="greet_line">%1$s waiting</string>
     <string name="greet_done">All read. Well done.</string>
-    <string name="summary">%1$s · %2$s · updated %3$s</string>
     <plurals name="stories">
         <item quantity="one">%d story</item>
         <item quantity="other">%d stories</item>
-    </plurals>
-    <plurals name="coachings">
-        <item quantity="one">%d coaching</item>
-        <item quantity="other">%d coachings</item>
     </plurals>
     <string name="meta">  ·  %1$d min read  ·  Original ↗</string>
 </resources>
