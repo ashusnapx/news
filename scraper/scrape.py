@@ -8,7 +8,8 @@ import json
 import re
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from html.parser import HTMLParser
 from itertools import zip_longest
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
@@ -17,6 +18,7 @@ from zoneinfo import ZoneInfo
 IST = ZoneInfo("Asia/Kolkata")
 NOW = datetime.now(IST)
 SINCE = NOW - timedelta(hours=24)
+QUIZ_SINCE = NOW - timedelta(hours=48)  # quizzes post later and in batches; each coaching still gives only its newest
 
 
 def get(url):
@@ -102,11 +104,35 @@ SOURCES = [
 ]
 
 
+def newest(base, category, fields):
+    posts = json.loads(get(f"{base}/wp-json/wp/v2/posts?per_page=1&categories={category}&_fields=date_gmt,link,{fields}"))
+    return posts[0] if posts and published(posts[0]) >= QUIZ_SINCE else None
+
+
 def proquiz(source, base, category):
     """WP Pro Quiz posts: questions and options in the HTML, correct answers in the plugin's init JSON."""
-    for p in json.loads(get(f"{base}/wp-json/wp/v2/posts?per_page=3&categories={category}&_fields=date_gmt,link,content")):
-        if published(p) >= SINCE:
-            yield from questions(source, p["link"], p["content"]["rendered"])
+    if p := newest(base, category, "content"):
+        yield from questions(source, p["link"], p["content"]["rendered"])
+
+
+def lqz(source, base, category):
+    """Legacy IAS's own quiz widget: one <div class="lqz-q" data-answer="b"> per question, explanation inline."""
+    if not (p := newest(base, category, "id")):
+        return
+    page = get(p["link"])
+    for block in re.split(r'(?=<div class="lqz-q" data-answer=)', page)[1:]:
+        answer = re.match(r'<div class="lqz-q" data-answer="([a-d])"', block)
+        text = re.search(r'<div class="lqz-q-text">(.*?)</div>\s*</div>\s*<ul class="lqz-options">', block, re.S)
+        options = [plain(o) for o in re.findall(r'<span class="lqz-otext">(.*?)</span>', block, re.S)]
+        why = re.search(r'<div class="lqz-explain-inner">(.*?)</div>\s*</div>', block, re.S)
+        if not (answer and text and len(options) > 1):
+            continue
+        q = re.sub(r'<ul class="lqz-stems">(.*?)</ul>', r"<ol>\1</ol>", text.group(1), flags=re.S)  # numbered by CSS on their site
+        q = re.sub(r'<div class="lqz-q-ask">(.*?)</div>', r"<p>\1</p>", q, flags=re.S)
+        why = re.sub(r'<div class="lqz-explain-head">.*?</div>', "", why.group(1) if why else "", flags=re.S)
+        why, more = split(blocks(why))
+        yield {"source": source, "link": p["link"], "q": numbered(q.strip()), "options": options,
+               "answer": "abcd".index(answer.group(1)), "why": why, "more": more}
 
 
 def questions(source, link, page):
@@ -123,17 +149,75 @@ def questions(source, link, page):
         why = why.group(1) if why else ""
         why = re.sub(r'<span class="wpProQuiz_respone_span">.*?</span>\s*(<br\s*/?>)?|<p>\s*<strong>\s*Answer:.*?</p>|<img[^>]*>'
                      r'|<p>\s*<strong>\s*Explanation\s*:?\s*</strong>\s*</p>', "", why, flags=re.S)
-        why, more = split(JUNK.sub("", why).strip())
+        why, more = split(blocks(JUNK.sub("", why)))
         yield {"source": source, "link": link, "q": numbered(text.group(1).strip()), "options": options,
                "answer": correct[qid.group(1)], "why": why, "more": more}
 
 
-def split(why):
-    """The reason first, the background later: cut at the first sub-heading ("About Phuket Island:", "History")."""
-    cut = re.search(r"<p>\s*<strong>[^<]{3,80}</strong>\s*</p>", why)
-    if cut and plain(why[:cut.start()]):
-        return why[:cut.start()].strip(), why[cut.start():].strip()
-    return why, ""
+class _Blocks(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.out, self.buf, self.depth = [], [], 0
+
+    def flush(self):
+        text = re.sub(r"<b>\s*</b>", "", re.sub(r"\s+", " ", "".join(self.buf))).strip()
+        text = re.sub(r"</b>(\s*)<b>", r"\1", text).replace("’’", "”").replace("‘‘", "“")
+        self.buf = []
+        if plain(text):
+            self.out.append(["li" if self.depth else "p", self.depth, text])
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("strong", "b"):
+            self.buf.append("<b>")
+        elif tag in ("ul", "ol", "li", "p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6", "tr"):
+            self.flush()
+            self.depth += tag in ("ul", "ol")
+
+    def handle_endtag(self, tag):
+        if tag in ("strong", "b"):
+            self.buf.append("</b>")
+        elif tag in ("ul", "ol", "li", "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "tr"):
+            self.flush()
+            self.depth -= tag in ("ul", "ol") and self.depth > 0
+
+    def handle_data(self, data):
+        self.buf.append(html.escape(data, quote=False))
+
+
+def blocks(fragment):
+    """Coaching HTML -> [[kind, depth, text]]: kind p (paragraph), li (bullet at depth), h (sub-heading).
+    Inline markup is cut to <b> only; empty lines, inline styles and stray spans go."""
+    parser = _Blocks()
+    parser.feed(fragment)
+    parser.close()
+    parser.flush()
+    out = []
+    for kind, depth, text in parser.out:
+        if JUNK_LINE.match(plain(text)):
+            continue
+        # A short all-bold line ending in ":" (or "About ...") is a sub-heading, not a sentence.
+        whole = re.fullmatch(r"<b>([^<]{2,80}?)(:?)</b>(:?)", text)
+        if kind == "p" and whole and (whole.group(2) or whole.group(3) or whole.group(1).startswith("About ")):
+            out.append(["h", 0, whole.group(1).strip()])
+            continue
+        # "Statement 1 is correct — ... Statement 2 is incorrect — ..." reads better one verdict per line.
+        for part in re.split(r"\s+(?=(?:Statement|Pair) \d+ is (?:in)?correct)", text):
+            out.append([kind, depth, part])
+    return out
+
+
+JUNK_LINE = re.compile(r"^(?:(?:News|Source)\s*:?\s*)?(?:https?://\S+)?$", re.I)
+CONCLUSION = re.compile(r"^(?:Hence|Therefore|Thus|So,)\b", re.I)
+
+
+def split(bs):
+    """The reason first, the background later: cut at the first sub-heading ("About Phuket Island", "History").
+    A closing "Hence only statement 2 is correct." belongs with the reason, wherever it was written."""
+    cut = next((i for i, b in enumerate(bs) if b[0] == "h"), None)
+    if not cut:
+        return bs, []
+    why, more = bs[:cut], bs[cut:]
+    return why + [b for b in more if CONCLUSION.match(plain(b[2]))], [b for b in more if not CONCLUSION.match(plain(b[2]))]
 
 
 def plain(fragment):
@@ -148,8 +232,9 @@ def numbered(fragment):
 
 
 QUIZZES = [
-    ("Vajiram & Ravi", "https://vajiramandravi.com/current-affairs", 139),
-    ("IASbaba", "https://iasbaba.com", 1066),
+    ("Vajiram & Ravi", proquiz, "https://vajiramandravi.com/current-affairs", 139),
+    ("IASbaba", proquiz, "https://iasbaba.com", 1066),
+    ("Legacy IAS", lqz, "https://www.legacyias.com", 701),
 ]
 
 QUIZ_STOP = set("""consider following statement statements regarding recently seen news which given above correct
@@ -160,7 +245,7 @@ one two three four""".split())
 def dedupe(qs):
     """The same question from several coachings: keep the copy with the fullest explanation."""
     kept = []
-    for q in sorted(qs, key=lambda q: len(plain(q["why"])), reverse=True):
+    for q in sorted(qs, key=lambda q: sum(len(plain(b[2])) for b in q["why"] + q["more"]), reverse=True):
         w = words(plain(q["q"])) - QUIZ_STOP
         if not any(len(w & k) >= 3 and len(w & k) / min(len(w), len(k)) >= 0.6 for k in (words(plain(x["q"])) - QUIZ_STOP for x in kept)):
             kept.append(q)
@@ -200,9 +285,9 @@ def main(out):
         except Exception as e:
             print(f"::warning::{name} failed: {e!r}")
     quiz = []
-    for name, base, category in QUIZZES:
+    for name, fetcher, *args in QUIZZES:
         try:
-            quiz += list(proquiz(name, base, category))
+            quiz += list(fetcher(name, *args))
             print(f"{name} quiz: {sum(q['source'] == name for q in quiz)}")
         except Exception as e:
             print(f"::warning::{name} quiz failed: {e!r}")

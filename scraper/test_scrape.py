@@ -30,6 +30,20 @@ assert d["html"] == '<p>Body <img src="https://d.com/i.png"></p>', d["html"]
 assert d["image"] == "https://d.com/i.png" and d["excerpt"] == "Body"
 assert scrape.excerpt("Source: TH Subject: Mapping Context: The Maharashtra board approved it.") == "The Maharashtra board approved it."
 assert scrape.excerpt("Plain opening line.") == "Plain opening line."
+assert scrape.blocks("<p>Statement 1 is correct — yes. Statement 2 is incorrect — no.</p>") == [
+    ["p", 0, "Statement 1 is correct — yes."], ["p", 0, "Statement 2 is incorrect — no."]]
+
+legacy = """<div class="lqz-q" data-answer="b"> <div class="lqz-q-head"> <span class="lqz-q-num">Q1</span> <div class="lqz-q-text"> About <b>E100</b>:
+<ul class="lqz-stems"> <li>One.</li> <li>Two.</li> </ul> <div class="lqz-q-ask">Which are correct?</div> </div> </div> <ul class="lqz-options">
+<li class="lqz-option" data-key="a"><span class="lqz-key">A</span><span class="lqz-otext">1 only</span></li>
+<li class="lqz-option" data-key="b"><span class="lqz-key">B</span><span class="lqz-otext">2 only</span></li> </ul>
+<div class="lqz-explain"><div class="lqz-explain-inner"> <div class="lqz-explain-head">Answer: (b)</div> <p>Statement 2 holds.</p> </div></div> </div>"""
+scrape.get = lambda url: '[{"date_gmt":"%s","link":"https://l.com/q","id":1}]' % scrape.NOW.strftime("%Y-%m-%dT%H:%M:%S") if "wp-json" in url else legacy
+scrape.NOW = scrape.NOW.astimezone(scrape.timezone.utc)
+[lq] = scrape.lqz("Legacy IAS", "https://l.com", 701)
+assert lq["answer"] == 1 and lq["options"] == ["1 only", "2 only"], lq
+assert "<p>1. One.</p><p>2. Two.</p>" in lq["q"] and "<p>Which are correct?</p>" in lq["q"], lq["q"]
+assert lq["why"] == [["p", 0, "Statement 2 holds."]], lq["why"]
 print("ok")
 
 quiz_page = """<li class="wpProQuiz_listItem"><div class="wpProQuiz_question_text"><p>Consider the following statements about Phuket Island:</p>
@@ -39,17 +53,20 @@ quiz_page = """<li class="wpProQuiz_listItem"><div class="wpProQuiz_question_tex
 <li class="wpProQuiz_questionListItem" data-pos="1"><label><input type="radio"> b. 2 only </label></li></ul>
 <div class="wpProQuiz_response"><div style="display: none;" class="wpProQuiz_correct"><span class="wpProQuiz_respone_span"> Correct </span><br>
 <p><strong>Answer: b</strong></p><p><strong>Explanation:</strong></p><p>Phuket is in Thailand.</p><img src="x.png">
-<p><strong>About Phuket Island:</strong></p><ul><li>Largest island.</li></ul></div><div style="display: none;" class="wpProQuiz_incorrect">x</div></div>
+<p><strong>About Phuket Island:</strong></p><ul><li>It is <strong>Thailand&#8217;s largest island</strong>.</li>
+<li><strong>History</strong>:<ul><li style="font-weight: 400;"><span>Settled in the 1st century BCE.</span></li></ul></li></ul><p>&nbsp;</p>
+<p><strong>Hence only statement 2 is correct.</strong></p><p><strong>News</strong>:https://www.thehindu.com/x</p></div><div style="display: none;" class="wpProQuiz_incorrect">x</div></div>
 <script>json: {"2840":{"type":"single","id":2840,"points":1,"correct":[0,1]}}</script>"""
 [q] = scrape.questions("Vajiram & Ravi", "https://v.com/q", quiz_page)
 assert q["options"] == ["1 only", "2 only"] and q["answer"] == 1, q
 assert "<p>1. It is part of Malaysia.</p><p>2. It sits on the Andaman Sea.</p>" in q["q"], q["q"]
-assert q["why"] == "<p>Phuket is in Thailand.</p>", q["why"]
-assert q["more"] == "<p><strong>About Phuket Island:</strong></p><ul><li>Largest island.</li></ul>", q["more"]
+assert q["why"] == [["p", 0, "Phuket is in Thailand."], ["p", 0, "<b>Hence only statement 2 is correct.</b>"]], q["why"]
+assert q["more"] == [["h", 0, "About Phuket Island"], ["li", 1, "It is <b>Thailand’s largest island</b>."],
+                     ["li", 1, "<b>History</b>:"], ["li", 2, "Settled in the 1st century BCE."]], q["more"]
 
-short = dict(q, source="IASbaba", why="<p>Thailand.</p>",
+short = dict(q, source="IASbaba", why=[["p", 0, "Thailand."]], more=[],
              q="With reference to Phuket Island, consider: <p>1. It is in Malaysia.</p><p>2. It lies on the Andaman Sea.</p>")
-other = dict(q, source="IASbaba", q="Consider the following statements about the Saidongar pumped storage project", why="")
+other = dict(q, source="IASbaba", q="Consider the following statements about the Saidongar pumped storage project", why=[], more=[])
 kept = scrape.dedupe([q, short, other])
 assert kept == [q, other], [k["source"] for k in kept]  # duplicate dropped for the thinner explanation, order kept
 print("ok")
