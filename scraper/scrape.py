@@ -40,8 +40,9 @@ JUNK = re.compile(r"<(script|style|iframe|form|noscript|svg)\b.*?</\1>|<!--.*?--
 
 
 def excerpt(text):
-    """Skip the "Source: TH Subject: Mapping Context:" header Insights-style notes open with."""
-    m = re.search(r"\bContext\s*:\s*", text[:300])
+    """Skip the "Source: TH Subject: Mapping Context:" header Insights notes open with, and the
+    "Kittur Fort Latest News" heading Vajiram's do."""
+    m = re.search(r"\bContext\s*:\s*|^.{0,100}?\bLatest News\s+", text[:300])
     return text[m.end() if m else 0:][:220]
 
 

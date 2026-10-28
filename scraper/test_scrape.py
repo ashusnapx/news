@@ -30,6 +30,7 @@ assert d["html"] == '<p>Body <img src="https://d.com/i.png"></p>', d["html"]
 assert d["image"] == "https://d.com/i.png" and d["excerpt"] == "Body"
 assert scrape.excerpt("Source: TH Subject: Mapping Context: The Maharashtra board approved it.") == "The Maharashtra board approved it."
 assert scrape.excerpt("Plain opening line.") == "Plain opening line."
+assert scrape.excerpt("Kittur Fort Latest News The Karnataka government will build it.") == "The Karnataka government will build it."
 assert scrape.blocks("<p>Statement 1 is correct — yes. Statement 2 is incorrect — no.</p>") == [
     ["p", 0, "Statement 1 is correct — yes."], ["p", 0, "Statement 2 is incorrect — no."]]
 
