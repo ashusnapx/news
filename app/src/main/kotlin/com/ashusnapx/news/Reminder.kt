@@ -8,6 +8,11 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
+import android.widget.RemoteViews
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -74,6 +79,8 @@ class Reminder : BroadcastReceiver() {
         val reads = Reads.all(c)
         val unread = feed.stories.filter { s -> s.none { it.link in reads } }
 
+        // Morning: the top stories; evening: the top unread ones. Their photos make the carousel.
+        val showcase = (if (slot == "evening") unread else feed.stories).filter { it.lead.image != null }.take(3)
         val (title, text) = when (slot) {
             "morning" -> {
                 if (feed.stories.isEmpty()) return
@@ -102,17 +109,55 @@ class Reminder : BroadcastReceiver() {
         } else {
             PendingIntent.getActivity(c, 11, main, PendingIntent.FLAG_IMMUTABLE)
         }
-        nm.notify(
-            SLOTS.indexOfFirst { it.first == slot },
-            Notification.Builder(c, CHANNEL)
-                .setSmallIcon(R.drawable.ic_mains)
-                .setColor(c.getColor(R.color.accent))
-                .setContentTitle(title)
-                .setContentText(text)
-                .setStyle(Notification.BigTextStyle().bigText(text))
-                .setContentIntent(tap)
-                .setAutoCancel(true)
-                .build(),
-        )
+        val builder = Notification.Builder(c, CHANNEL)
+            .setSmallIcon(R.drawable.ic_mains)
+            .setColor(c.getColor(R.color.accent))
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(tap)
+            .setAutoCancel(true)
+        val slides = if (slot == "quiz") emptyList() else showcase.mapNotNull { s -> thumb(s.lead.image!!)?.let { s.lead.title to it } }
+        when {
+            slides.size > 1 -> {
+                // Collapsed: just the words. Expanded: one slide per story, crossfaded by the system. No large icon,
+                // which would repeat the first photo as a thumbnail beside the carousel.
+                val small = RemoteViews(c.packageName, R.layout.notif_small).apply {
+                    setTextViewText(R.id.title, title)
+                    setTextViewText(R.id.text, text)
+                }
+                val carousel = RemoteViews(c.packageName, R.layout.notif_carousel)
+                slides.forEachIndexed { i, (headline, bitmap) ->
+                    carousel.addView(R.id.flipper, RemoteViews(c.packageName, R.layout.notif_slide).apply {
+                        setImageViewBitmap(R.id.image, bitmap)
+                        setTextViewText(R.id.title, headline)
+                        setTextViewText(R.id.count, "${i + 1} / ${slides.size}")
+                    })
+                }
+                builder.setStyle(Notification.DecoratedCustomViewStyle()).setCustomContentView(small).setCustomBigContentView(carousel)
+            }
+            // One photo: a thumbnail while collapsed, the full picture when expanded, never both at once.
+            slides.size == 1 -> builder.setStyle(
+                Notification.BigPictureStyle().bigPicture(slides[0].second).showBigPictureWhenCollapsed(true).setSummaryText(text)
+            )
+            else -> builder.setStyle(Notification.BigTextStyle().bigText(text))
+        }
+        nm.notify(SLOTS.indexOfFirst { it.first == slot }, builder.build())
+    }
+
+    /**
+     * A 480x240 centre crop in RGB_565: three of them stay far under the notification's parcel size limit,
+     * and the system scales them to the shade anyway.
+     */
+    private fun thumb(url: String): Bitmap? {
+        val src = runCatching { Img.decode(url, 960, 960) }.getOrNull() ?: return null
+        val out = Bitmap.createBitmap(480, 240, Bitmap.Config.RGB_565)
+        val scale = maxOf(480f / src.width, 240f / src.height)
+        val w = 480 / scale
+        val h = 240 / scale
+        val left = (src.width - w) / 2
+        val top = (src.height - h) / 2
+        Canvas(out).drawBitmap(src, Rect(left.toInt(), top.toInt(), (left + w).toInt(), (top + h).toInt()), Rect(0, 0, 480, 240), Paint(Paint.FILTER_BITMAP_FLAG))
+        src.recycle()
+        return out
     }
 }
