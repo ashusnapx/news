@@ -1,4 +1,4 @@
-"""Today's (IST) UPSC current-affairs stories from coaching sites, grouped across sources, as one JSON file.
+"""The last 24 hours of UPSC current-affairs stories from coaching sites, grouped across sources, as one JSON file.
 
 Stdlib only. Usage: python3 scrape.py out.json
 Each source fails on its own; a broken or silent source just contributes nothing.
@@ -15,19 +15,23 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 IST = ZoneInfo("Asia/Kolkata")
-TODAY = datetime.now(IST).date()
+NOW = datetime.now(IST)
+SINCE = NOW - timedelta(hours=24)
 
 
-def get(url, tries=3):
+def get(url):
     """Retries: from GitHub's runners these sites sometimes stall a request that works fine a minute later."""
-    for attempt in range(tries):
+    for wait in (10, 20):
         try:
-            with urlopen(Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=60) as r:
-                return r.read().decode("utf-8", "replace")
+            return fetch(url)
         except OSError:
-            if attempt == tries - 1:
-                raise
-            time.sleep(10 * (attempt + 1))
+            time.sleep(wait)
+    return fetch(url)
+
+
+def fetch(url):
+    with urlopen(Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=60) as r:
+        return r.read().decode("utf-8", "replace")
 
 
 JUNK = re.compile(r"<(script|style|iframe|form|noscript|svg)\b.*?</\1>|<!--.*?-->", re.S | re.I)
@@ -51,18 +55,23 @@ def item(source, title, link, body, image=None):
 def wp(source, base, categories):
     """WordPress REST API: structured, so it survives site redesigns."""
     url = (f"{base}/wp-json/wp/v2/posts?per_page=100&_embed=wp:featuredmedia"
-           f"&after={TODAY - timedelta(days=1)}T00:00:00" + (f"&categories={categories}" if categories else ""))
+           f"&after={SINCE.date() - timedelta(days=1)}T00:00:00" + (f"&categories={categories}" if categories else ""))
     for p in json.loads(get(url)):
-        if datetime.fromisoformat(p["date_gmt"] + "+00:00").astimezone(IST).date() != TODAY:
+        if datetime.fromisoformat(p["date_gmt"] + "+00:00") < SINCE:
             continue
         media = (p.get("_embedded", {}).get("wp:featuredmedia") or [{}])[0]
         yield item(source, p["title"]["rendered"], p["link"], p["content"]["rendered"], media.get("source_url"))
 
 
 def drishti(source):
-    """No API or feed: one page per date, one <div class="article-detail"> per story."""
-    page = get(f"https://www.drishtiias.com/current-affairs-news-analysis-editorials/news-analysis/{TODAY:%d-%m-%Y}")
-    for block in page.split('<div class="article-detail"')[1:]:
+    """No API or feed: one page per date, one <div class="article-detail"> per story.
+    Posts carry no time, so take the newest edition: today's, or yesterday's until today's is up."""
+    for day in (NOW.date(), NOW.date() - timedelta(days=1)):
+        page = get(f"https://www.drishtiias.com/current-affairs-news-analysis-editorials/news-analysis/{day:%d-%m-%Y}")
+        blocks = page.split('<div class="article-detail"')[1:]
+        if blocks:
+            break
+    for block in blocks:
         block = block.split("<!-- #end article detail -->")[0]
         head = re.search(r'<h1 id="dynamic-title"><a href="([^"]+)"[^>]*>(.*?)</a>', block, re.S)
         if head:
@@ -114,7 +123,7 @@ def main(out):
         except Exception as e:
             print(f"::warning::{name} failed: {e!r}")
     items = [x for row in zip_longest(*per_source) for x in row if x]  # interleave sources
-    feed = {"date": TODAY.isoformat(), "updated": datetime.now(IST).isoformat(timespec="minutes"), "stories": group(items)}
+    feed = {"updated": NOW.isoformat(timespec="minutes"), "stories": group(items)}
     with open(out, "w", encoding="utf-8") as f:
         json.dump(feed, f, ensure_ascii=False, separators=(",", ":"))
 

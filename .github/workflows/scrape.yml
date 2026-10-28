@@ -2,7 +2,7 @@ name: scrape
 
 on:
   schedule:
-    - cron: "30 0-17 * * *" # hourly, 06:00–23:00 IST
+    - cron: "30 * * * *" # hourly, round the clock: the app treats a feed older than 6 hours as stale
   workflow_dispatch:
 
 permissions:
