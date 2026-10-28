@@ -36,5 +36,16 @@
             android:name=".ArticleActivity"
             android:exported="false"
             android:theme="@style/Theme.News.Article" />
+
+        <activity
+            android:name=".QuizActivity"
+            android:exported="false" />
+
+        <!-- Handles its own rotation: turning to fit the picture must not reload it. -->
+        <activity
+            android:name=".ImageActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="false"
+            android:theme="@style/Theme.News.Viewer" />
     </application>
 </manifest>

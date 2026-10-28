@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/frame"
+        android:layout_width="match_parent"
+        android:layout_height="420dp"
+        android:background="@drawable/card"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ViewFlipper
+            android:id="@+id/flipper"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- One bar per slide, filling while it plays. -->
+        <LinearLayout
+            android:id="@+id/segments"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:importantForAccessibility="no"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="14dp" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/more"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="28dp"
+        android:accessibilityHeading="true"
+        android:letterSpacing="0.14"
+        android:text="@string/more"
+        android:textColor="@color/ink2"
+        android:textFontWeight="700"
+        android:textSize="11.5sp" />
+</LinearLayout>

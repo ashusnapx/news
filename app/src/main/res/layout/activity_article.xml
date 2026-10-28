@@ -77,6 +77,68 @@
                 android:id="@+id/body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
+
+            <!-- Up next: the swipe made visible. -->
+            <FrameLayout
+                android:id="@+id/nextWrap"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/upNext"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/card"
+                    android:baselineAligned="false"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="14dp"
+                    android:stateListAnimator="@animator/press">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.12"
+                            android:text="@string/up_next"
+                            android:textColor="@color/accent"
+                            android:textFontWeight="700"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/nextTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:ellipsize="end"
+                            android:maxLines="2"
+                            android:textColor="@color/ink"
+                            android:textFontWeight="700"
+                            android:textSize="16sp" />
+                    </LinearLayout>
+
+                    <FrameLayout
+                        android:id="@+id/nextThumb"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_marginStart="14dp"
+                        android:background="@drawable/thumb">
+
+                        <ImageView
+                            android:id="@+id/nextImage"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:importantForAccessibility="no"
+                            android:scaleType="centerCrop" />
+                    </FrameLayout>
+                </LinearLayout>
+            </FrameLayout>
         </LinearLayout>
     </ScrollView>
 

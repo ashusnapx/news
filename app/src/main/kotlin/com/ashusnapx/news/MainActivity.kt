@@ -5,10 +5,12 @@ import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -25,12 +27,25 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private val KINDS = listOf("prelims" to R.string.prelims, "mains" to R.string.mains)
+private const val TOP = 5 // stories in the carousel
+private const val AVATAR = "https://avatars.githubusercontent.com/u/75922918?v=4&s=192"
+
 class MainActivity : Activity() {
     private lateinit var list: ListView
     private lateinit var label: TextView
     private lateinit var state: TextView
     private lateinit var summary: TextView
     private lateinit var refresh: View
+    private lateinit var quizCard: View
+    private lateinit var quizTitle: TextView
+    private lateinit var quizMeta: TextView
+    private lateinit var tabs: View
+    private lateinit var tabPills: List<TextView>
+    private lateinit var readRow: View
+    private lateinit var readText: TextView
+    private lateinit var readBar: View
+    private lateinit var carousel: Carousel
     private val spinner by lazy {
         ObjectAnimator.ofFloat(refresh, View.ROTATION, 0f, 360f).apply {
             duration = 800
@@ -40,7 +55,10 @@ class MainActivity : Activity() {
     }
 
     private var cols = 1
+    private var tab = KINDS[0].first
     private var stories: List<Story> = emptyList()
+    private var reads: Set<String> = emptySet()
+    private var caughtUp = false
     private var shown: String? = null // `updated` stamp of the feed on screen
     private var loading = false
 
@@ -54,8 +72,31 @@ class MainActivity : Activity() {
         summary = header.findViewById(R.id.summary)
         refresh = header.findViewById(R.id.refresh)
         refresh.setOnClickListener { it.haptic(); load() }
+        quizCard = header.findViewById(R.id.quizCard)
+        quizTitle = header.findViewById(R.id.quizTitle)
+        quizMeta = header.findViewById(R.id.quizMeta)
+        quizCard.setOnClickListener { it.haptic(); startActivity(Intent(this, QuizActivity::class.java)) }
+        tabs = header.findViewById(R.id.tabs)
+        tabPills = KINDS.map { (kind, _) ->
+            newPill(tabs as LinearLayout, "") { selectTab(kind) }.apply { layoutParams = LinearLayout.LayoutParams(0, 40.dp, 1f) }
+        }
+        readRow = header.findViewById(R.id.readRow)
+        readText = header.findViewById(R.id.readText)
+        readBar = header.findViewById(R.id.readBar)
+        header.findViewById<View>(R.id.readTrack).clipToOutline = true
+        carousel = Carousel(this, layoutInflater.inflate(R.layout.item_carousel, list, false)) { v, image, lead -> open(v, image, lead) }
+
+        tab = savedInstanceState?.getString("tab") ?: tab
+        selectTab(tab, animate = false)
         list.addHeaderView(header, null, false)
+        list.addFooterView(footer(), null, false)
         list.adapter = adapter
+        list.setOnScrollListener(object : AbsListView.OnScrollListener {
+            override fun onScrollStateChanged(view: AbsListView, scrollState: Int) = Unit
+            override fun onScroll(view: AbsListView, first: Int, visible: Int, total: Int) {
+                if (first > 1) carousel.pause() else carousel.resume() // header is 0, carousel 1
+            }
+        })
 
         // 1 column on phones, 2 on unfolded foldables / landscape, 3 on tablets. Folding recreates the activity.
         val width = windowWidth
@@ -63,15 +104,30 @@ class MainActivity : Activity() {
         edgeToEdge { i ->
             val side = 16.dp + gutter(width - i.left - i.right - 32.dp, cols * 440.dp)
             list.setPadding(i.left + side, i.top + 8.dp, i.right + side, i.bottom + 24.dp)
+            findViewById<View>(R.id.scrim).apply { layoutParams.height = i.top + 28.dp; requestLayout() }
         }
 
         Feed.current?.let(::show) // instant redraw after rotate/fold
         Looper.myQueue().addIdleHandler { WebView(this).destroy(); false } // warm up Chromium so the first article opens instantly
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("tab", tab)
+    }
+
     override fun onStart() {
         super.onStart()
+        reads = Reads.all(this) // coming back from an article: dim it, move the progress bar
+        adapter.notifyDataSetChanged()
+        progress()
+        carousel.resume()
         load()
+    }
+
+    override fun onStop() {
+        carousel.pause()
+        super.onStop()
     }
 
     private fun load() {
@@ -107,58 +163,88 @@ class MainActivity : Activity() {
             resources.getQuantityString(R.plurals.coachings, coachings, coachings),
             feed.updated.substring(11, 16),
         )
+        val n = feed.quiz.size
+        quizCard.visibility = if (n == 0) View.GONE else View.VISIBLE
+        quizTitle.text = resources.getQuantityString(R.plurals.questions, n, n)
+        quizMeta.text = getString(R.string.quiz_meta, (n + 1) / 2)
+        tabs.visibility = if (feed.stories.isEmpty()) View.GONE else View.VISIBLE
+        KINDS.forEachIndexed { i, (kind, label) ->
+            tabPills[i].text = getString(R.string.tab, getString(label), feed.stories.count { s -> s.any { it.kind == kind } })
+        }
         if (feed.updated == shown) return
         val first = shown == null
         shown = feed.updated
-        stories = feed.stories
-        adapter.notifyDataSetChanged()
+        Reads.prune(this, feed)
+        reads = Reads.all(this)
+        filter()
         if (first) list.scheduleLayoutAnimation()
     }
 
-    /** Row 0 is the most-covered story as a full-bleed feature; the rest are compact cards, [cols] per row. */
+    /** Prelims / Mains: a story shows under a tab when any coaching filed it there. */
+    private fun selectTab(kind: String, animate: Boolean = true) {
+        if (animate && kind == tab) return
+        tab = kind
+        KINDS.forEachIndexed { i, (k, _) -> tabPills[i].pill(k == kind, getColor(R.color.accent), animate) }
+        if (!animate) return
+        tabPills[KINDS.indexOfFirst { it.first == kind }].bounce()
+        filter()
+        list.scheduleLayoutAnimation()
+    }
+
+    private fun filter() {
+        stories = Feed.current?.stories.orEmpty().filter { s -> s.any { it.kind == tab } }
+        caughtUp = false
+        adapter.notifyDataSetChanged()
+        progress()
+    }
+
+    private fun Story.read() = any { it.link in reads }
+
+    /** "3 of 22 read" with a filling bar; finishing a tab gets a small celebration. */
+    private fun progress() {
+        readRow.visibility = if (stories.isEmpty()) View.GONE else View.VISIBLE
+        val done = stories.count { it.read() }
+        val all = done == stories.size && done > 0
+        readText.text = if (all) getString(R.string.caught_up) else getString(R.string.reads, done, stories.size)
+        readText.setTextColor(getColor(if (all) R.color.good else R.color.ink2))
+        readBar.setBackgroundColor(getColor(if (all) R.color.good else R.color.accent))
+        readBar.animate().scaleX(if (stories.isEmpty()) 0f else done / stories.size.toFloat()).setDuration(500)
+        if (all && !caughtUp) {
+            readText.bounce()
+            readText.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+        }
+        caughtUp = all
+    }
+
+    /** Row 0 is the carousel of the [TOP] most-covered stories; the rest are compact cards, [cols] per row. */
     private val adapter = object : BaseAdapter() {
-        override fun getCount() = if (stories.isEmpty()) 0 else 1 + (stories.size - 1 + cols - 1) / cols
+        private val rest get() = stories.drop(TOP)
+        override fun getCount() = if (stories.isEmpty()) 0 else 1 + (rest.size + cols - 1) / cols
         override fun getViewTypeCount() = 2
         override fun getItemViewType(position: Int) = if (position == 0) 0 else 1
         override fun getItem(position: Int) = position
         override fun getItemId(position: Int) = position.toLong()
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            if (position == 0) return (convertView ?: newFeature(parent)).also(::bindFeature)
+            if (position == 0) {
+                carousel.bind(stories.take(TOP))
+                carousel.view.findViewById<View>(R.id.more).visibility = if (rest.isEmpty()) View.GONE else View.VISIBLE
+                return carousel.view
+            }
             val row = convertView as LinearLayout? ?: newRow()
             for (k in 0 until cols) {
-                val i = 1 + (position - 1) * cols + k
+                val i = (position - 1) * cols + k
                 val card = row.getChildAt(k)
-                card.visibility = if (i < stories.size) View.VISIBLE else View.INVISIBLE
-                if (i < stories.size) bind(card, stories[i])
+                card.visibility = if (i < rest.size) View.VISIBLE else View.INVISIBLE
+                if (i < rest.size) bind(card, rest[i])
             }
             return row
         }
     }
 
-    private fun newFeature(parent: ViewGroup) = layoutInflater.inflate(R.layout.item_featured, parent, false).apply {
-        val card = findViewById<View>(R.id.card)
-        card.clipToOutline = true
-        card.layoutParams.height = minOf(400.dp, windowManager.currentWindowMetrics.bounds.height() * 3 / 5) // landscape
-    }
-
-    private fun bindFeature(v: View) {
-        val story = stories[0]
-        val lead = story.lead
-        val image = v.findViewById<ImageView>(R.id.image)
-        v.findViewById<TextView>(R.id.badge).text =
-            if (story.size > 1) getString(R.string.covered_by, story.size) else getString(R.string.top_story)
-        v.findViewById<TextView>(R.id.title).text = lead.title
-        v.findViewById<TextView>(R.id.excerpt).text = lead.excerpt
-        v.findViewById<TextView>(R.id.sources).text = getString(R.string.sources_min, story.joinToString("  ·  ") { it.source }, lead.minutes)
-        v.findViewById<View>(R.id.more).visibility = if (stories.size > 1) View.VISIBLE else View.GONE
-        image.background = sourceGradient(lead.source) // shows through when there is no photo
-        Img.load(lead.image, image)
-        v.findViewById<View>(R.id.card).setOnClickListener { open(it, image, lead) }
-    }
-
     private class Holder(card: View) {
         val image: ImageView = card.findViewById(R.id.image)
+        val thumb: View = card.findViewById(R.id.thumb)
         val mono: TextView = card.findViewById(R.id.mono)
         val sources: TextView = card.findViewById(R.id.sources)
         val title: TextView = card.findViewById(R.id.title)
@@ -178,23 +264,23 @@ class MainActivity : Activity() {
     private fun bind(card: View, story: Story) {
         val h = card.tag as Holder
         val lead = story.lead
-        h.sources.text = dots(story, lead.minutes)
-        h.sources.contentDescription = story.joinToString { it.source }
+        val read = story.read()
+        h.sources.text = meta(story, read)
         h.title.text = lead.title
-        h.mono.text = lead.source.take(1)
+        h.title.alpha = if (read) 0.55f else 1f
+        h.thumb.alpha = if (read) 0.55f else 1f
+        h.mono.text = lead.title.take(1)
         h.mono.background = sourceGradient(lead.source)
         h.image.visibility = if (lead.image == null) View.GONE else View.VISIBLE
         Img.load(lead.image, h.image)
         card.setOnClickListener { open(it, h.image, lead) }
     }
 
-    /** "●●● 3 coachings · 4 min": one colored dot per coaching that covered the story. */
-    private fun dots(story: Story, minutes: Int) = SpannableStringBuilder().apply {
-        story.forEach { append("●", ForegroundColorSpan(getColor(sourceColor(it.source))), 0) }
-        append("  ")
-        if (story.size == 1) append(story[0].source, ForegroundColorSpan(getColor(sourceColor(story[0].source))), 0)
-        else append(resources.getQuantityString(R.plurals.coachings, story.size, story.size))
-        append(getString(R.string.dot_min, minutes))
+    /** "4 min · 3 sources · ✓ Read". No coaching names on the front page; the tab already says prelims or mains. */
+    private fun meta(story: Story, read: Boolean) = SpannableStringBuilder().apply {
+        append(getString(R.string.min_short, story.lead.minutes))
+        if (story.size > 1) append(getString(R.string.dot)).append(resources.getQuantityString(R.plurals.sources, story.size, story.size))
+        if (read) append(getString(R.string.read_mark), ForegroundColorSpan(getColor(R.color.good)), 0)
     }
 
     private fun open(card: View, image: ImageView, lead: Item) {
@@ -202,6 +288,17 @@ class MainActivity : Activity() {
         val hero = if (image.isShown && image.drawable != null) {
             ActivityOptions.makeSceneTransitionAnimation(this, image, "hero").toBundle()
         } else null
-        startActivity(Intent(this, ArticleActivity::class.java).putExtra(ArticleActivity.LINK, lead.link), hero)
+        startActivity(Intent(this, ArticleActivity::class.java).putExtra(ArticleActivity.LINK, lead.link).putExtra(ArticleActivity.TAB, tab), hero)
+    }
+
+    private fun footer() = layoutInflater.inflate(R.layout.footer_feed, list, false).apply {
+        val avatar = findViewById<ImageView>(R.id.avatar)
+        avatar.clipToOutline = true
+        Img.load(AVATAR, avatar)
+        fun wire(v: View) {
+            if (v is ViewGroup) for (i in 0 until v.childCount) wire(v.getChildAt(i))
+            else (v.tag as? String)?.let { url -> v.setOnClickListener { it.haptic(); browse(Uri.parse(url)) } }
+        }
+        wire(this)
     }
 }

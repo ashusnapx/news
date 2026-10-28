@@ -11,10 +11,58 @@
     <string name="state_empty">All quiet.</string>
     <string name="state_offline">You’re offline.</string>
     <string name="top_story">TOP STORY</string>
-    <string name="covered_by">COVERED BY %1$d COACHINGS</string>
+    <string name="covered_by">COVERED BY %1$d SOURCES</string>
     <string name="more">MORE STORIES</string>
-    <string name="sources_min">%1$s  ·  %2$d min</string>
-    <string name="dot_min">  ·  %1$d min</string>
+    <string name="dot">  ·  </string>
+    <string name="min_short">%1$d min</string>
+    <string name="prelims">Prelims</string>
+    <string name="mains">Mains</string>
+    <string name="tab">%1$s  %2$d</string>
+    <string name="quiz_label">TODAY’S QUIZ</string>
+    <string name="quiz_start">Start →</string>
+    <string name="quiz_meta">About %1$d min  ·  answers explained</string>
+    <string name="quiz_step">QUESTION %1$d OF %2$d  ·  %3$s</string>
+    <string name="quiz_right">Correct</string>
+    <string name="quiz_wrong">Not quite</string>
+    <string name="quiz_answer">Answer  ·  %1$s  ·  %2$s</string>
+    <string name="quiz_why">WHY</string>
+    <string name="quiz_more">More context ▾</string>
+    <string name="quiz_less">Less ▴</string>
+    <string name="quiz_flip">Tap the card to see the question again</string>
+    <string name="quiz_next">Next question</string>
+    <string name="quiz_finish">See my score</string>
+    <string name="quiz_done">Done</string>
+    <string name="quiz_score">%1$d/%2$d</string>
+    <string name="quiz_great">Sharp. Prelims-ready.</string>
+    <string name="quiz_okay">Solid. Revise the ones you missed.</string>
+    <string name="quiz_low">A tough set. Read today’s stories, then try again tomorrow.</string>
+    <plurals name="sources">
+        <item quantity="one">%d source</item>
+        <item quantity="other">%d sources</item>
+    </plurals>
+    <plurals name="questions">
+        <item quantity="one">%d question</item>
+        <item quantity="other">%d questions</item>
+    </plurals>
+    <string name="s_github" translatable="false">GitHub</string>
+    <string name="s_linkedin" translatable="false">LinkedIn</string>
+    <string name="s_x" translatable="false">X</string>
+    <string name="s_instagram" translatable="false">Instagram</string>
+    <string name="s_medium" translatable="false">Medium</string>
+    <string name="s_website">Website</string>
+    <string name="made_by">Made by Ashutosh Kumar</string>
+    <string name="author">Ashutosh Kumar</string>
+    <string name="author_line">Generative AI Engineer  ·  Bengaluru</string>
+    <string name="tagline">No ads. No tracking. Just today’s news, from the coachings you trust.</string>
+    <string name="story_next">Next story</string>
+    <string name="story_prev">Previous story</string>
+    <string name="reads">%1$d of %2$d read</string>
+    <string name="caught_up">All caught up ✓</string>
+    <string name="read_mark">  ·  ✓ Read</string>
+    <string name="image">Article image. Pinch or double-tap to zoom.</string>
+    <string name="close">Close</string>
+    <string name="image_failed">Couldn’t open this image</string>
+    <string name="up_next">UP NEXT  ·  OR SWIPE ←</string>
     <string name="summary">%1$s · %2$s · updated %3$s</string>
     <plurals name="stories">
         <item quantity="one">%d story</item>

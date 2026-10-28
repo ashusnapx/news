@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="bg">#F6F5F2</color>
+    <color name="bg_clear">#00F6F5F2</color> <!-- bg at zero alpha: fades without a grey midpoint -->
     <color name="surface">#FFFFFF</color>
     <color name="ink">#15141A</color>
     <color name="ink2">#6A6875</color>
@@ -15,6 +16,9 @@
     <color name="src_insights">#0369A1</color>
     <color name="src_forum">#047857</color>
     <color name="src_rau">#7E22CE</color>
+
+    <color name="good">#15803D</color>
+    <color name="bad">#DC2626</color>
 
     <color name="icon_bg">#5B4CF5</color>
 </resources>

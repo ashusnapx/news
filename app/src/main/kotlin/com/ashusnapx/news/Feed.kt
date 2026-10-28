@@ -9,6 +9,7 @@ import java.time.OffsetDateTime
 
 class Item(
     val source: String,
+    val kind: String, // "prelims" or "mains"
     val title: String,
     val link: String,
     val image: String?,
@@ -22,7 +23,10 @@ typealias Story = List<Item>
 
 val Story.lead get() = firstOrNull { it.image != null } ?: first()
 
-class Feed(val updated: String, val stories: List<Story>) {
+/** A quiz MCQ. [q] and [why] are small HTML fragments; [answer] indexes [options]. */
+class Question(val source: String, val q: String, val options: List<String>, val answer: Int, val why: String, val more: String)
+
+class Feed(val updated: String, val stories: List<Story>, val quiz: List<Question>) {
     companion object {
         private const val URL = "https://ashusnapx.github.io/news/news.json"
 
@@ -44,19 +48,25 @@ class Feed(val updated: String, val stories: List<Story>) {
             )
             // A stalled scraper must show nothing rather than yesterday's news.
             if (OffsetDateTime.parse(o.getString("updated")).isBefore(OffsetDateTime.now().minusHours(6))) {
-                return Feed(o.getString("updated"), emptyList())
+                return Feed(o.getString("updated"), emptyList(), emptyList())
             }
             val arr = o.getJSONArray("stories")
+            val qs = o.optJSONArray("quiz")
+            val quiz = List(qs?.length() ?: 0) { i ->
+                val x = qs!!.getJSONObject(i)
+                val opts = x.getJSONArray("options")
+                Question(x.getString("source"), x.getString("q"), List(opts.length(), opts::getString), x.getInt("answer"), x.getString("why"), x.optString("more"))
+            }
             return Feed(o.getString("updated"), List(arr.length()) { i ->
                 val s = arr.getJSONArray(i)
                 List(s.length()) { j ->
                     val x = s.getJSONObject(j)
                     Item(
-                        x.getString("source"), x.getString("title"), x.getString("link"),
+                        x.getString("source"), x.optString("kind", "prelims"), x.getString("title"), x.getString("link"),
                         x.getString("image").ifEmpty { null }, x.getString("excerpt"), x.getInt("min"), x.getString("html"),
                     )
                 }
-            })
+            }, quiz)
         }
 
         private fun get(cacheControl: String) = URL(URL).openConnection().run {

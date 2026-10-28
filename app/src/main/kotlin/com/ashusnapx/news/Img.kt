@@ -26,7 +26,8 @@ object Img {
         into.alpha = 0f
         val width = into.resources.displayMetrics.widthPixels
         pool.execute {
-            val bitmap = runCatching { decode(url, width) }.getOrNull() ?: return@execute
+            // Up to 2x screen width, height capped at 3x so a giant infographic can't exhaust memory.
+            val bitmap = runCatching { decode(url, width * 2, width * 3) }.getOrNull() ?: return@execute
             memory.put(url, bitmap)
             main.post {
                 if (into.tag != url) return@post // view was recycled for another story meanwhile
@@ -36,7 +37,8 @@ object Img {
         }
     }
 
-    private fun decode(url: String, width: Int): Bitmap? {
+    /** Blocking: download (through the HTTP cache) and decode, downsampled until it fits [maxW] x [maxH]. */
+    fun decode(url: String, maxW: Int, maxH: Int): Bitmap? {
         val bytes = URL(url).openConnection().run {
             connectTimeout = 10_000
             readTimeout = 20_000
@@ -44,8 +46,7 @@ object Img {
         }
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o)
-        // Downsample to screen width, and cap height at 3x so a giant infographic can't exhaust memory.
-        o.inSampleSize = generateSequence(1) { it * 2 }.first { o.outWidth / it <= width * 2 && o.outHeight / it <= width * 3 }
+        o.inSampleSize = generateSequence(1) { it * 2 }.first { o.outWidth / it <= maxW && o.outHeight / it <= maxH }
         o.inJustDecodeBounds = false
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o)
     }
